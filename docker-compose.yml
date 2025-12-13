@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # API Stock Predictor
+  api:
+    build: .
+    container_name: stock-predictor-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./dados_mercado.db:/app/dados_mercado.db
+    environment:
+      - ENV=development
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Prometheus - Coleta de metricas
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: stock-predictor-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Grafana - Visualizacao (opcional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: stock-predictor-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:

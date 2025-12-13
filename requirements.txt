@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn==0.30.0
+torch==2.4.0
+yfinance>=0.2.66
+scikit-learn==1.5.0
+pandas==2.2.0
+numpy==1.26.0
+prometheus-client==0.21.0
+sqlalchemy==2.0.30
+pydantic==2.9.0
+python-multipart==0.0.9

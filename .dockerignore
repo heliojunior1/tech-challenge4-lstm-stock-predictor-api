@@ -1,0 +1,65 @@
+# ==============================================================================
+# .dockerignore - Arquivos ignorados no build Docker
+# ==============================================================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+env
+.eggs
+*.egg-info
+*.egg
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testes
+tests
+.pytest_cache
+.coverage
+htmlcov
+
+# Documentos
+*.md
+!README.md
+*.pdf
+docs
+
+# Arquivos locais
+*.db
+*.sqlite3
+output.txt
+*.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Render
+render.yaml
+
+# Prometheus (local)
+prometheus.yml
+
+# Modelos treinados (podem ser muito grandes)
+# Descomente se quiser excluir modelos do build
+# data/models/*.pt
+
+# Ambiente
+.env
+.env.*
+*.local

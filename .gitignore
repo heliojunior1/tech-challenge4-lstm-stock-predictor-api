@@ -1,0 +1,70 @@
+# ==============================================================================
+# .gitignore - Stock Predictor API
+# ==============================================================================
+
+# Pasta do professor
+Post_Tech_MLET/
+pos-tech-mlet/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv
+venv
+ENV
+env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Banco de dados local
+*.db
+*.sqlite3
+dados_mercado.db
+
+# Logs e outputs
+*.log
+output.txt
+logs/
+
+# Arquivos de ambiente
+.env
+.env.*
+*.local
+
+# Modelos treinados (muito grandes para Git)
+# Descomente para ignorar modelos
+# data/models/*.pt
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prometheus data (local)
+prometheus_data/
+grafana_data/

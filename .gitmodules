@@ -1,4 +1,0 @@
-[submodule "pos-tech-mlet"]
-	path = pos-tech-mlet
-	url = https://github.com/FIAP/Pos_Tech_MLET.git
-	branch = deep-learning

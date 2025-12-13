@@ -1,0 +1,61 @@
+# ==============================================================================
+# Render Blueprint - Configuracao para deploy no Render.com
+# Docs: https://render.com/docs/blueprint-spec
+# ==============================================================================
+
+services:
+  # API Principal
+  - type: web
+    name: stock-predictor-api
+    runtime: docker
+    region: oregon  # ou sao-paulo para menor latencia no Brasil
+    plan: free      # free, starter, standard, pro
+    
+    # Health Check
+    healthCheckPath: /health
+    
+    # Configuracoes do Docker
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    
+    # Variaveis de Ambiente
+    envVars:
+      - key: ENV
+        value: production
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "8000"
+    
+    # Disco persistente para modelos (opcional - requer plano pago)
+    # disk:
+    #   name: models-storage
+    #   mountPath: /app/data/models
+    #   sizeGB: 1
+    
+    # Auto-deploy quando push no GitHub
+    autoDeploy: true
+
+# ==============================================================================
+# INSTRUCOES DE DEPLOY:
+# 
+# 1. Faca commit e push do projeto para GitHub:
+#    git add .
+#    git commit -m "Deploy inicial"
+#    git push origin main
+#
+# 2. Acesse https://render.com e crie uma conta
+#
+# 3. Clique em "New" > "Blueprint"
+#
+# 4. Conecte seu repositorio GitHub
+#
+# 5. Render detectara automaticamente este arquivo render.yaml
+#
+# 6. Clique em "Apply" para fazer o deploy
+#
+# IMPORTANTE:
+# - O plano free tem 512MB RAM e entra em sleep apos 15min de inatividade
+# - Para modelos LSTM grandes, considere treinar localmente e apenas inferir
+# - O banco SQLite sera recriado a cada deploy (dados volateis)
+# - Para persistencia, use PostgreSQL ou disco persistente (plano pago)
+# ==============================================================================
