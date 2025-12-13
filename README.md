@@ -173,8 +173,71 @@ docker compose up -d
 
 Serviços:
 - API: http://localhost:8000
+- Swagger UI: http://localhost:8000/docs
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
+
+### Ver Logs dos Containers
+
+```powershell
+# Logs da API (tempo real)
+docker logs stock-predictor-api -f
+
+# Logs do Prometheus
+docker logs stock-predictor-prometheus -f
+
+# Logs do Grafana
+docker logs stock-predictor-grafana -f
+
+# Logs de TODOS os serviços
+docker compose logs -f
+
+# Últimas 50 linhas
+docker compose logs --tail 50
+```
+
+> **Dica**: Use `Ctrl+C` para sair do modo de logs em tempo real.
+
+### Comandos Úteis Docker
+
+| Comando | Descrição |
+|---------|-----------|
+| `docker compose up -d` | Iniciar todos os serviços |
+| `docker compose down` | Parar todos os serviços |
+| `docker compose restart` | Reiniciar serviços |
+| `docker compose logs -f` | Ver logs em tempo real |
+| `docker ps` | Listar containers rodando |
+| `docker compose up -d --build` | Rebuild e reiniciar |
+
+### Executar Endpoints via Docker
+
+Com os containers rodando (`docker compose up -d`), use o Swagger UI ou os comandos abaixo:
+
+**Via Swagger (Recomendado):**
+1. Acesse http://localhost:8000/docs
+2. Clique no endpoint desejado
+3. Clique em "Try it out"
+4. Preencha os parâmetros
+5. Clique em "Execute"
+
+**Via PowerShell:**
+```powershell
+# Verificar se API está rodando
+Invoke-RestMethod -Uri "http://localhost:8000/health"
+
+# Ingerir dados
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/ingest/AAPL?period=1y" -Method Post
+
+# Treinar modelo
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/train/AAPL" -Method Post -ContentType "application/json" -Body '{"epochs": 5}'
+
+# Fazer previsão
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/predict/AAPL" -Method Post -ContentType "application/json" -Body '{"days": 1}'
+
+# Listar modelos
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/models"
+```
+
 
 ## ☁️ Deploy no Render
 
@@ -189,21 +252,139 @@ Serviços:
 
 ## 📊 Monitoramento
 
-### Métricas Prometheus
+### Métricas Prometheus Disponíveis
 
 ```
-stock_predictor_requests_total
+stock_predictor_requests_total        # Total de requisições
+stock_predictor_predictions_total     # Total de previsões realizadas
+stock_predictor_trainings_total       # Total de treinamentos
+stock_predictor_request_latency_seconds   # Latência das requisições
+stock_predictor_training_duration_seconds # Duração dos treinamentos
+stock_predictor_models_count          # Número de modelos treinados
+stock_predictor_last_prediction_price # Último preço previsto
+```
+
+### Configurar Prometheus
+
+1. Acesse http://localhost:9090
+2. Vá em **Status → Targets** para verificar se os targets estão UP
+3. Na aba **Graph**, digite uma query:
+
+**Queries que sempre funcionam:**
+```promql
+# Informações do Python
+python_info
+
+# Memória do processo
+process_resident_memory_bytes
+
+# CPU utilizada
+process_cpu_seconds_total
+
+# Garbage Collector
+python_gc_collections_total
+```
+
+**Queries personalizadas (após usar a API):**
+```promql
+# Total de previsões
 stock_predictor_predictions_total
+
+# Último preço previsto por ticker
+stock_predictor_last_prediction_price
+
+# Total de treinamentos
 stock_predictor_trainings_total
-stock_predictor_request_latency_seconds
-stock_predictor_training_duration_seconds
+
+# Duração dos treinamentos
+stock_predictor_training_duration_seconds_sum
 ```
 
-### Dashboard Grafana
+> **Nota**: As métricas `stock_predictor_*` só aparecem após a primeira utilização da API (previsão, treino, etc.)
+
+### Gerar Métricas via Aplicação
+
+Para que as métricas apareçam no Prometheus, você precisa **usar a API**. Siga estes passos:
+
+**Opção 1: Via Swagger UI (Interface Gráfica)**
+
+1. Acesse http://localhost:8000/docs
+2. **Ingerir dados** (necessário antes de treinar):
+   - Clique em `POST /api/v1/ingest/{ticker}`
+   - Clique em "Try it out"
+   - Digite o ticker: `AAPL` (ou `PETR4.SA`)
+   - Clique em "Execute"
+3. **Treinar modelo**:
+   - Clique em `POST /api/v1/train/{ticker}`
+   - Clique em "Try it out"
+   - Digite o ticker: `AAPL`
+   - No body, use: `{"epochs": 5}`
+   - Clique em "Execute"
+4. **Fazer previsão**:
+   - Clique em `POST /api/v1/predict/{ticker}`
+   - Clique em "Try it out"
+   - Digite o ticker: `AAPL`
+   - No body, use: `{"days": 1}`
+   - Clique em "Execute"
+
+**Opção 2: Via Linha de Comando (PowerShell)**
+
+```powershell
+# 1. Ingerir dados (baixar 1 ano de histórico)
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/ingest/AAPL?period=1y" -Method Post
+
+# 2. Treinar modelo (5 epochs para teste rápido)
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/train/AAPL" -Method Post -ContentType "application/json" -Body '{"epochs": 5}'
+
+# 3. Fazer previsão
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/predict/AAPL" -Method Post -ContentType "application/json" -Body '{"days": 1}'
+```
+
+**Opção 3: Via cURL (Linux/Mac)**
+
+```bash
+# 1. Ingerir dados
+curl -X POST "http://localhost:8000/api/v1/ingest/AAPL?period=1y"
+
+# 2. Treinar modelo
+curl -X POST "http://localhost:8000/api/v1/train/AAPL" \
+  -H "Content-Type: application/json" \
+  -d '{"epochs": 5}'
+
+# 3. Fazer previsão
+curl -X POST "http://localhost:8000/api/v1/predict/AAPL" \
+  -H "Content-Type: application/json" \
+  -d '{"days": 1}'
+```
+
+Após executar esses comandos, acesse http://localhost:9090 e verifique as métricas!
+
+### Configurar Grafana
 
 1. Acesse http://localhost:3000
-2. Add data source → Prometheus → URL: http://prometheus:9090
-3. Import dashboard ou crie painéis personalizados
+2. Login: `admin` / `admin`
+
+**Adicionar Data Source:**
+1. Clique em ⚙️ → **Data Sources**
+2. Clique em **Add data source**
+3. Selecione **Prometheus**
+4. Em URL digite: `http://prometheus:9090`
+5. Clique em **Save & Test**
+
+**Criar Dashboard:**
+1. Clique em **+** → **Dashboard**
+2. Clique em **Add visualization**
+3. Selecione **Prometheus** como data source
+4. Digite a query (ex: `process_resident_memory_bytes`)
+5. Clique em **Apply**
+
+**Painéis sugeridos:**
+| Métrica | Tipo | Descrição |
+|---------|------|-----------|
+| `process_resident_memory_bytes` | Gauge | Memória RAM usada |
+| `process_cpu_seconds_total` | Counter | CPU acumulada |
+| `stock_predictor_predictions_total` | Counter | Previsões realizadas |
+| `stock_predictor_last_prediction_price` | Gauge | Último preço previsto |
 
 ## 🧪 Testes
 

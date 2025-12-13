@@ -13,6 +13,7 @@ from app.models.schemas import (
     PredictionHistory
 )
 from app.services.predict_service import PredictService, predict_price
+from app.routers.monitoring import record_prediction
 
 router = APIRouter()
 
@@ -35,6 +36,11 @@ async def predict_endpoint(
             days=request.days,
             model_path=request.model_path
         )
+        
+        # Registrar metrica Prometheus para cada previsao
+        for pred in result["predictions"]:
+            record_prediction(ticker, pred["predicted_price"])
+        
         return PredictResponse(
             ticker=result["ticker"],
             model=result["model"],

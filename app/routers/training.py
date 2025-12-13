@@ -3,10 +3,12 @@ Training Router - Endpoints para treinamento do modelo LSTM
 """
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from typing import Optional
+import time
 
 from app.models.schemas import TrainRequest, TrainResponse, IngestResponse
 from app.services.train_service import train_model
 from app.database import init_db
+from app.routers.monitoring import record_training, update_models_count
 
 # Importar ingest diretamente
 import sys
@@ -22,6 +24,7 @@ def _background_train(ticker: str, epochs: int, batch_size: int, learning_rate: 
     """Funcao para executar treinamento em background."""
     global _training_status
     _training_status[ticker] = {"status": "training", "progress": 0}
+    start_time = time.time()
     try:
         result = train_model(
             ticker,
@@ -30,8 +33,11 @@ def _background_train(ticker: str, epochs: int, batch_size: int, learning_rate: 
             learning_rate=learning_rate,
             train_ratio=train_ratio
         )
+        duration = time.time() - start_time
+        record_training(ticker, "success", duration)
         _training_status[ticker] = {"status": "completed", "result": result}
     except Exception as e:
+        record_training(ticker, "failed")
         _training_status[ticker] = {"status": "failed", "error": str(e)}
 
 
@@ -49,6 +55,7 @@ async def train_endpoint(
     - **learning_rate**: Taxa de aprendizado (default: 0.001)
     - **train_ratio**: Proporcao treino/teste (default: 0.8)
     """
+    start_time = time.time()
     try:
         result = train_model(
             ticker,
@@ -57,10 +64,17 @@ async def train_endpoint(
             learning_rate=request.learning_rate,
             train_ratio=request.train_ratio
         )
+        
+        # Registrar metrica Prometheus
+        duration = time.time() - start_time
+        record_training(ticker, "success", duration)
+        
         return TrainResponse(**result)
     except ValueError as e:
+        record_training(ticker, "failed")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        record_training(ticker, "failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
