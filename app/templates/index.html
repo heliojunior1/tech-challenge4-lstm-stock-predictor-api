@@ -1,81 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12 text-center">
-        <h1 class="display-4 mb-2">📈 Dashboard</h1>
-        <p class="lead">Visão geral do sistema de previsão de ações com LSTM</p>
+<!-- Action Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <a href="/ingest" class="action-card">
+            <div class="icon-wrapper primary">
+                <i class="fas fa-cloud-download-alt"></i>
+            </div>
+            <h3>Ingestão</h3>
+            <p>Baixar dados históricos</p>
+        </a>
+    </div>
+    
+    <div class="col-md-4">
+        <a href="/train" class="action-card">
+            <div class="icon-wrapper success">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h3>Treinamento</h3>
+            <p>Criar modelos LSTM</p>
+        </a>
+    </div>
+    
+    <div class="col-md-4">
+        <a href="/predict" class="action-card">
+            <div class="icon-wrapper info">
+                <i class="fas fa-magic"></i>
+            </div>
+            <h3>Predição</h3>
+            <p>Consultar futuro</p>
+        </a>
     </div>
 </div>
 
-<div class="row g-4 mb-5">
-    <!-- Card Models -->
-    <div class="col-md-4">
-        <div class="card dashboard-card primary h-100 p-4 text-center">
-            <i class="fas fa-brain"></i>
-            <h3 class="h5 mb-3">Modelos Treinados</h3>
-            <p class="metric-value" id="total-models">-</p>
-            <a href="/train" class="btn btn-outline-primary mt-3">
-                <i class="fas fa-plus me-2"></i>Novo Treinamento
-            </a>
-        </div>
+<!-- History Section -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-history me-2"></i>Histórico de Previsões</h5>
+        <a href="/history" class="btn btn-link btn-sm">Ver tudo</a>
     </div>
-
-    <!-- Card Predictions -->
-    <div class="col-md-4">
-        <div class="card dashboard-card success h-100 p-4 text-center">
-            <i class="fas fa-chart-line"></i>
-            <h3 class="h5 mb-3">Previsões Realizadas</h3>
-            <p class="metric-value" id="total-predictions">-</p>
-            <a href="/predict" class="btn btn-outline-success mt-3">
-                <i class="fas fa-magic me-2"></i>Nova Previsão
-            </a>
-        </div>
-    </div>
-
-    <!-- Card Ingest -->
-    <div class="col-md-4">
-        <div class="card dashboard-card info h-100 p-4 text-center">
-            <i class="fas fa-database"></i>
-            <h3 class="h5 mb-3">Ingestão de Dados</h3>
-            <p class="text-muted mt-2 mb-3">Atualize a base com dados do Yahoo Finance</p>
-            <a href="/ingest" class="btn btn-outline-info mt-auto">
-                <i class="fas fa-download me-2"></i>Ingerir Dados
-            </a>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card p-4">
-            <h5 class="card-title mb-4">
-                <i class="fas fa-cubes me-2"></i>Modelos por Ticker
-            </h5>
-            <div id="models-chart">
-                <div class="text-center text-muted py-4">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    Carregando...
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card p-4">
-            <h5 class="card-title mb-4">
-                <i class="fas fa-clock me-2"></i>Previsões Recentes
-            </h5>
-            <ul class="list-group list-group-flush" id="recent-predictions">
-                <li class="list-group-item text-center text-muted">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    Carregando...
-                </li>
-            </ul>
-            <div class="text-end mt-3">
-                <a href="/history" class="btn btn-sm btn-outline-primary">
-                    Ver histórico completo <i class="fas fa-arrow-right ms-1"></i>
-                </a>
-            </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Ticker</th>
+                        <th>Preço Previsto</th>
+                        <th>Data da Previsão</th>
+                        <th>Modelo Usado</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -83,42 +68,44 @@
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadHistory();
+    });
+    
+    async function loadHistory() {
+        const tbody = document.getElementById('history-body');
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>Carregando...</td></tr>`;
+        
         try {
-            // Fetch metrics
-            const response = await axios.get('/api/v1/metrics/json');
-            const data = response.data;
-
-            document.getElementById('total-models').textContent = data.total_models;
-            document.getElementById('total-predictions').textContent = data.total_predictions;
-
-            // Populate Models Chart (Simple list for now)
-            const modelsDiv = document.getElementById('models-chart');
-            modelsDiv.innerHTML = '<ul class="list-group list-group-flush">' +
-                Object.entries(data.models_by_ticker).map(([ticker, count]) =>
-                    `<li class="list-group-item d-flex justify-content-between align-items-center">
-                        ${ticker} <span class="badge bg-primary rounded-pill">${count}</span>
-                    </li>`
-                ).join('') + '</ul>';
-
-            // Fetch recent predictions
-            const historyResponse = await axios.get('/api/v1/predictions/history?limit=5');
-            const historyDiv = document.getElementById('recent-predictions');
-            if (historyResponse.data.predictions.length === 0) {
-                historyDiv.innerHTML = '<li class="list-group-item">Nenhuma previsão encontrada</li>';
-            } else {
-                historyDiv.innerHTML = historyResponse.data.predictions.map(p =>
-                    `<li class="list-group-item">
-                        <strong>${p.ticker}</strong>: R$ ${p.predicted_price.toFixed(2)}
-                        <span class="text-muted small ms-2">${new Date(p.prediction_date).toLocaleDateString()}</span>
-                    </li>`
-                ).join('');
+            // Load predictions history
+            const predictionsRes = await axios.get('/api/v1/predictions/history?limit=10');
+            const predictions = predictionsRes.data.predictions || [];
+            
+            if (predictions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma previsão encontrada</td></tr>';
+                return;
             }
-
+            
+            tbody.innerHTML = predictions.map((p, index) => `
+                <tr>
+                    <td>#${index + 1}</td>
+                    <td><span class="badge bg-primary">${p.ticker}</span></td>
+                    <td>R$ ${p.predicted_price.toFixed(2)}</td>
+                    <td>
+                        <i class="fas fa-clock me-1 text-muted"></i>
+                        ${new Date(p.prediction_date).toLocaleDateString('pt-BR')}, ${new Date(p.prediction_date).toLocaleTimeString('pt-BR')}
+                    </td>
+                    <td>
+                        <a href="#" class="text-primary">${p.model_path ? p.model_path.split('/').pop() : 'N/A'}</a>
+                    </td>
+                </tr>
+            `).join('');
+            
         } catch (error) {
             console.error(error);
-            alert('Erro ao carregar dados do dashboard');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Erro ao carregar histórico</td></tr>';
         }
-    });
+    }
 </script>
 {% endblock %}
