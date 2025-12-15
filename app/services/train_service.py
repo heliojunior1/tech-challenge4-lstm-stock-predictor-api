@@ -125,6 +125,7 @@ class TrainService:
             "final_val_loss": self.history["val_loss"][-1],
             "rmse": metrics["rmse"],
             "mae": metrics["mae"],
+            "mape": metrics["mape"],
             "model_path": str(model_path)
         }
     
@@ -151,13 +152,20 @@ class TrainService:
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
         mae = float(mean_absolute_error(y_true, y_pred))
         
+        # Calcular MAPE (Mean Absolute Percentage Error)
+        # Evitar divisão por zero usando máscara
+        mask = y_true != 0
+        mape = float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
+        
         print(f"\n[METRICS] Metricas de Avaliacao:")
         print(f"   RMSE: R$ {rmse:.2f}")
         print(f"   MAE:  R$ {mae:.2f}")
+        print(f"   MAPE: {mape:.2f}%")
         
         return {
             "rmse": rmse,
             "mae": mae,
+            "mape": mape,
             "predictions": y_pred.flatten().tolist(),
             "actual": y_true.flatten().tolist()
         }
@@ -203,6 +211,7 @@ class TrainService:
                 val_loss=self.history["val_loss"][-1],
                 rmse=metrics["rmse"],
                 mae=metrics["mae"],
+                mape=metrics["mape"],
                 epochs=len(self.history["train_loss"])
             )
             session.add(trained_model)

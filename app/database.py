@@ -64,6 +64,7 @@ class TrainedModel(Base):
     val_loss = Column(Float, nullable=True)
     rmse = Column(Float, nullable=True)
     mae = Column(Float, nullable=True)
+    mape = Column(Float, nullable=True)
     epochs = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
     

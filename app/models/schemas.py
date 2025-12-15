@@ -44,6 +44,7 @@ class TrainResponse(BaseModel):
     final_val_loss: float
     rmse: float
     mae: float
+    mape: float
     model_path: str
     message: str = "Treinamento concluído com sucesso"
 
@@ -70,6 +71,7 @@ class ModelInfo(BaseModel):
     model_path: str
     rmse: Optional[float]
     mae: Optional[float]
+    mape: Optional[float]
     epochs: int
     created_at: Optional[str]
 

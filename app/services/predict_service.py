@@ -168,6 +168,7 @@ class PredictService:
                 "model_path": m.model_path,
                 "rmse": m.rmse,
                 "mae": m.mae,
+                "mape": m.mape,
                 "epochs": m.epochs,
                 "created_at": m.created_at.isoformat() if m.created_at else None
             } for m in models]
