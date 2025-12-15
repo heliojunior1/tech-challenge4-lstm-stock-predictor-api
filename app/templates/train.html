@@ -2,42 +2,58 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card p-4">
-            <h2 class="mb-4"><i class="fas fa-brain me-2"></i> Treinamento de Modelo</h2>
+    <div class="col-lg-8">
+        <div class="card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-brain fa-3x mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                <h2 class="mb-2">Treinamento de Modelo</h2>
+                <p class="text-muted">Configure e treine um modelo LSTM para previsão de preços</p>
+            </div>
+            
             <form id="train-form">
-                <div class="mb-3">
-                    <label for="ticker" class="form-label">Ticker da Ação</label>
-                    <input type="text" class="form-control" id="ticker" placeholder="Ex: PETR4.SA" required>
-                    <div class="form-text">Certifique-se de ter ingerido dados para este ticker antes.</div>
+                <div class="mb-4">
+                    <label for="ticker" class="form-label">
+                        <i class="fas fa-tag me-1"></i>Ticker da Ação
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="ticker" placeholder="Ex: PETR4.SA, AAPL, DIS" required>
+                    <div class="form-text">
+                        <i class="fas fa-info-circle me-1"></i>Certifique-se de ter ingerido dados para este ticker antes.
+                    </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="epochs" class="form-label">Épocas</label>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="epochs" class="form-label">
+                            <i class="fas fa-redo me-1"></i>Épocas
+                        </label>
                         <input type="number" class="form-control" id="epochs" value="100" min="1" max="1000">
+                        <div class="form-text">Número de iterações de treinamento</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="batch_size" class="form-label">Batch Size</label>
+                    <div class="col-md-6">
+                        <label for="batch_size" class="form-label">
+                            <i class="fas fa-layer-group me-1"></i>Batch Size
+                        </label>
                         <input type="number" class="form-control" id="batch_size" value="32" min="8" max="256">
+                        <div class="form-text">Amostras por atualização de peso</div>
                     </div>
                 </div>
 
-                <div class="form-check mb-3">
+                <div class="form-check mb-4 p-3 rounded" style="background: rgba(102, 126, 234, 0.05);">
                     <input class="form-check-input" type="checkbox" id="async_train">
                     <label class="form-check-label" for="async_train">
-                        Treinar em Background (Assíncrono)
+                        <i class="fas fa-clock me-1"></i>Treinar em Background (Assíncrono)
+                        <small class="d-block text-muted">O treinamento será executado em segundo plano</small>
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" id="btn-submit">
-                    <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"
-                        aria-hidden="true"></span>
-                    Iniciar Treinamento
+                <button type="submit" class="btn btn-primary btn-lg w-100" id="btn-submit">
+                    <span id="spinner" class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
+                    <i class="fas fa-play me-2" id="btn-icon"></i>
+                    <span id="btn-text">Iniciar Treinamento</span>
                 </button>
             </form>
 
-            <div id="result" class="mt-4 d-none alert"></div>
+            <div id="result" class="mt-4 d-none"></div>
         </div>
     </div>
 </div>
@@ -54,10 +70,14 @@
 
         const btn = document.getElementById('btn-submit');
         const spinner = document.getElementById('spinner');
+        const btnIcon = document.getElementById('btn-icon');
+        const btnText = document.getElementById('btn-text');
         const resultDiv = document.getElementById('result');
 
         btn.disabled = true;
         spinner.classList.remove('d-none');
+        btnIcon.classList.add('d-none');
+        btnText.textContent = 'Treinando...';
         resultDiv.classList.add('d-none');
 
         try {
@@ -70,26 +90,50 @@
 
             if (asyncTrain) {
                 resultDiv.innerHTML = `
-                    <h4 class="alert-heading">Iniciado!</h4>
-                    <p>${response.data.message}</p>
-                    <p>Endpoint de status: <a href="${response.data.status_url}" target="_blank">${response.data.status_url}</a></p>
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-rocket fa-2x me-3"></i>
+                        <div>
+                            <h4 class="alert-heading mb-1">Treinamento Iniciado!</h4>
+                            <p class="mb-0">${response.data.message}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="mb-0">
+                        <i class="fas fa-link me-1"></i>
+                        Acompanhe em: <a href="${response.data.status_url}" target="_blank" class="fw-bold">${response.data.status_url}</a>
+                    </p>
                 `;
             } else {
                 resultDiv.innerHTML = `
-                    <h4 class="alert-heading">Concluído!</h4>
-                    <p>Modelo treinado com sucesso.</p>
-                    <h6>Métricas de Avaliação:</h6>
-                    <ul>
-                        <li><strong>RMSE:</strong> ${response.data.rmse.toFixed(4)}</li>
-                        <li><strong>MAE:</strong> ${response.data.mae.toFixed(4)}</li>
-                        <li><strong>MAPE:</strong> ${response.data.mape.toFixed(2)}%</li>
-                    </ul>
-                    <h6>Perdas de Treinamento:</h6>
-                    <ul>
-                        <li><strong>Train Loss Final:</strong> ${response.data.final_train_loss.toFixed(6)}</li>
-                        <li><strong>Val Loss Final:</strong> ${response.data.final_val_loss.toFixed(6)}</li>
-                    </ul>
-                    <p class="mb-0"><small>Modelo salvo em: ${response.data.model_path}</small></p>
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <div>
+                            <h4 class="alert-heading mb-1">Treinamento Concluído!</h4>
+                            <p class="mb-0">Modelo treinado com sucesso para <strong>${ticker}</strong></p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="fas fa-chart-bar me-1"></i>Métricas de Avaliação</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>RMSE:</strong> <span class="badge bg-primary">${response.data.rmse.toFixed(4)}</span></li>
+                                <li class="mt-2"><strong>MAE:</strong> <span class="badge bg-primary">${response.data.mae.toFixed(4)}</span></li>
+                                <li class="mt-2"><strong>MAPE:</strong> <span class="badge bg-success">${response.data.mape.toFixed(2)}%</span></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold"><i class="fas fa-fire me-1"></i>Perdas de Treinamento</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Train Loss:</strong> <span class="badge bg-secondary">${response.data.final_train_loss.toFixed(6)}</span></li>
+                                <li class="mt-2"><strong>Val Loss:</strong> <span class="badge bg-secondary">${response.data.final_val_loss.toFixed(6)}</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="mb-0 small text-muted">
+                        <i class="fas fa-save me-1"></i>Modelo salvo em: <code>${response.data.model_path}</code>
+                    </p>
                 `;
             }
             resultDiv.classList.remove('d-none');
@@ -98,11 +142,21 @@
             console.error(error);
             resultDiv.className = 'mt-4 alert alert-danger';
             const msg = error.response?.data?.detail || error.message;
-            resultDiv.innerHTML = `<strong>Erro:</strong> ${msg}`;
+            resultDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Erro no Treinamento</h5>
+                        <p class="mb-0">${msg}</p>
+                    </div>
+                </div>
+            `;
             resultDiv.classList.remove('d-none');
         } finally {
             btn.disabled = false;
             spinner.classList.add('d-none');
+            btnIcon.classList.remove('d-none');
+            btnText.textContent = 'Iniciar Treinamento';
         }
     });
 </script>

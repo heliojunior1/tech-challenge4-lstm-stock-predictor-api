@@ -2,35 +2,50 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card p-4">
-            <h2 class="mb-4"><i class="fas fa-database me-2"></i> Ingestão de Dados</h2>
+    <div class="col-lg-8">
+        <div class="card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-database fa-3x mb-3" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                <h2 class="mb-2">Ingestão de Dados</h2>
+                <p class="text-muted">Baixe dados históricos do Yahoo Finance para treinar modelos</p>
+            </div>
+
             <form id="ingest-form">
-                <div class="mb-3">
-                    <label for="ticker" class="form-label">Ticker da Ação</label>
-                    <input type="text" class="form-control" id="ticker" placeholder="Ex: PETR4.SA" required>
-                    <div class="form-text">Ex: PETR4.SA, AAPL, MSFT, DIS</div>
+                <div class="mb-4">
+                    <label for="ticker" class="form-label">
+                        <i class="fas fa-tag me-1"></i>Ticker da Ação
+                    </label>
+                    <input type="text" class="form-control form-control-lg" id="ticker" placeholder="Ex: PETR4.SA, AAPL, MSFT, DIS" required>
+                    <div class="form-text">
+                        <i class="fas fa-info-circle me-1"></i>Use o símbolo do Yahoo Finance (BR: .SA, EUA: sem sufixo)
+                    </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="start_date" class="form-label">Data Inicial (Opcional)</label>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="start_date" class="form-label">
+                            <i class="fas fa-calendar-alt me-1"></i>Data Inicial
+                        </label>
                         <input type="date" class="form-control" id="start_date">
+                        <div class="form-text">Opcional - padrão: 1 ano atrás</div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="end_date" class="form-label">Data Final (Opcional)</label>
+                    <div class="col-md-6">
+                        <label for="end_date" class="form-label">
+                            <i class="fas fa-calendar-check me-1"></i>Data Final
+                        </label>
                         <input type="date" class="form-control" id="end_date">
+                        <div class="form-text">Opcional - padrão: hoje</div>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100" id="btn-submit">
-                    <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"
-                        aria-hidden="true"></span>
-                    Baixar Dados
+                <button type="submit" class="btn btn-info btn-lg w-100 text-white" id="btn-submit">
+                    <span id="spinner" class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
+                    <i class="fas fa-download me-2" id="btn-icon"></i>
+                    <span id="btn-text">Baixar Dados</span>
                 </button>
             </form>
 
-            <div id="result" class="mt-4 d-none alert"></div>
+            <div id="result" class="mt-4 d-none"></div>
         </div>
     </div>
 </div>
@@ -45,11 +60,15 @@
         const endDate = document.getElementById('end_date').value;
         const btn = document.getElementById('btn-submit');
         const spinner = document.getElementById('spinner');
+        const btnIcon = document.getElementById('btn-icon');
+        const btnText = document.getElementById('btn-text');
         const resultDiv = document.getElementById('result');
 
         // Reset UI
         btn.disabled = true;
         spinner.classList.remove('d-none');
+        btnIcon.classList.add('d-none');
+        btnText.textContent = 'Baixando...';
         resultDiv.classList.add('d-none');
 
         try {
@@ -64,10 +83,18 @@
 
             resultDiv.className = 'mt-4 alert alert-success';
             resultDiv.innerHTML = `
-                <h4 class="alert-heading">Sucesso!</h4>
-                <p>${response.data.message}</p>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle fa-2x me-3"></i>
+                    <div>
+                        <h4 class="alert-heading mb-1">Dados Baixados!</h4>
+                        <p class="mb-0">${response.data.message}</p>
+                    </div>
+                </div>
                 <hr>
-                <p class="mb-0">Registros inseridos: <strong>${response.data.records_inserted}</strong></p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-database me-1"></i>Registros inseridos:</span>
+                    <span class="badge bg-success fs-6">${response.data.records_inserted}</span>
+                </div>
             `;
             resultDiv.classList.remove('d-none');
 
@@ -75,11 +102,21 @@
             console.error(error);
             resultDiv.className = 'mt-4 alert alert-danger';
             const msg = error.response?.data?.detail || error.message;
-            resultDiv.innerHTML = `<strong>Erro:</strong> ${msg}`;
+            resultDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Erro na Ingestão</h5>
+                        <p class="mb-0">${msg}</p>
+                    </div>
+                </div>
+            `;
             resultDiv.classList.remove('d-none');
         } finally {
             btn.disabled = false;
             spinner.classList.add('d-none');
+            btnIcon.classList.remove('d-none');
+            btnText.textContent = 'Baixar Dados';
         }
     });
 </script>

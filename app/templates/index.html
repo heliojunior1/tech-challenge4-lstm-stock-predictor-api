@@ -3,58 +3,78 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12 text-center">
-        <h1 class="display-4">Dashboard</h1>
-        <p class="lead text-muted">Visão geral do sistema de previsão de ações</p>
+        <h1 class="display-4 mb-2">📈 Dashboard</h1>
+        <p class="lead">Visão geral do sistema de previsão de ações com LSTM</p>
     </div>
 </div>
 
 <div class="row g-4 mb-5">
     <!-- Card Models -->
     <div class="col-md-4">
-        <div class="card h-100 p-4 text-center">
-            <i class="fas fa-brain fa-3x text-primary mb-3"></i>
-            <h3>Modelos Treinados</h3>
+        <div class="card dashboard-card primary h-100 p-4 text-center">
+            <i class="fas fa-brain"></i>
+            <h3 class="h5 mb-3">Modelos Treinados</h3>
             <p class="metric-value" id="total-models">-</p>
-            <a href="/train" class="btn btn-outline-primary stretched-link">Novo Treinamento</a>
+            <a href="/train" class="btn btn-outline-primary mt-3">
+                <i class="fas fa-plus me-2"></i>Novo Treinamento
+            </a>
         </div>
     </div>
 
     <!-- Card Predictions -->
     <div class="col-md-4">
-        <div class="card h-100 p-4 text-center">
-            <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-            <h3>Previsões Feitas</h3>
+        <div class="card dashboard-card success h-100 p-4 text-center">
+            <i class="fas fa-chart-line"></i>
+            <h3 class="h5 mb-3">Previsões Realizadas</h3>
             <p class="metric-value" id="total-predictions">-</p>
-            <a href="/predict" class="btn btn-outline-success stretched-link">Nova Previsão</a>
+            <a href="/predict" class="btn btn-outline-success mt-3">
+                <i class="fas fa-magic me-2"></i>Nova Previsão
+            </a>
         </div>
     </div>
 
     <!-- Card Ingest -->
     <div class="col-md-4">
-        <div class="card h-100 p-4 text-center">
-            <i class="fas fa-database fa-3x text-info mb-3"></i>
-            <h3>Ingestão de Dados</h3>
-            <p class="text-muted mt-3">Atualize a base de dados do Yahoo Finance</p>
-            <a href="/ingest" class="btn btn-outline-info mt-auto stretched-link">Ingerir Dados</a>
+        <div class="card dashboard-card info h-100 p-4 text-center">
+            <i class="fas fa-database"></i>
+            <h3 class="h5 mb-3">Ingestão de Dados</h3>
+            <p class="text-muted mt-2 mb-3">Atualize a base com dados do Yahoo Finance</p>
+            <a href="/ingest" class="btn btn-outline-info mt-auto">
+                <i class="fas fa-download me-2"></i>Ingerir Dados
+            </a>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h5 class="card-title">Modelos por Ticker</h5>
-            <div id="models-chart" style="height: 200px;">Carregando...</div>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h5 class="card-title mb-4">
+                <i class="fas fa-cubes me-2"></i>Modelos por Ticker
+            </h5>
+            <div id="models-chart">
+                <div class="text-center text-muted py-4">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Carregando...
+                </div>
+            </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h5 class="card-title">Previsões Recentes</h5>
+    <div class="col-lg-6">
+        <div class="card p-4">
+            <h5 class="card-title mb-4">
+                <i class="fas fa-clock me-2"></i>Previsões Recentes
+            </h5>
             <ul class="list-group list-group-flush" id="recent-predictions">
-                <li class="list-group-item">Carregando...</li>
+                <li class="list-group-item text-center text-muted">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Carregando...
+                </li>
             </ul>
-            <div class="card-footer bg-white border-0 text-end">
-                <a href="/history" class="small">Ver histórico completo</a>
+            <div class="text-end mt-3">
+                <a href="/history" class="btn btn-sm btn-outline-primary">
+                    Ver histórico completo <i class="fas fa-arrow-right ms-1"></i>
+                </a>
             </div>
         </div>
     </div>

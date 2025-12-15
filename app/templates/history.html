@@ -1,29 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
-        <h2 class="mb-4"><i class="fas fa-history me-2"></i> Histórico de Previsões</h2>
-
-        <div class="card p-4">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Ticker</th>
-                            <th>Preço Previsto</th>
-                            <th>Data Previsão</th>
-                            <th>Modelo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table">
-                        <tr>
-                            <td colspan="5" class="text-center">Carregando...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    <i class="fas fa-history me-2"></i>Histórico de Previsões
+                </h2>
+                <p class="text-muted mb-0">Todas as previsões realizadas pelo sistema</p>
             </div>
+            <a href="/predict" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nova Previsão
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Ticker</th>
+                        <th>Preço Previsto</th>
+                        <th>Data da Previsão</th>
+                        <th>Modelo Usado</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Carregando histórico...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -37,24 +52,41 @@
             const tbody = document.getElementById('history-table');
 
             if (response.data.predictions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum registro encontrado</td></tr>';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted mb-0">Nenhuma previsão encontrada</p>
+                            <a href="/predict" class="btn btn-sm btn-primary mt-3">Fazer primeira previsão</a>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
 
-            tbody.innerHTML = response.data.predictions.map(p => `
-                <tr>
-                    <td>${p.id}</td>
-                    <td><span class="badge bg-secondary">${p.ticker}</span></td>
-                    <td>R$ ${p.predicted_price.toFixed(2)}</td>
-                    <td>${new Date(p.prediction_date).toLocaleString()}</td>
-                    <td><small class="text-muted">${p.model_version}</small></td>
+            tbody.innerHTML = response.data.predictions.map((p, index) => `
+                <tr style="animation: fadeIn 0.3s ease-out ${index * 0.05}s both;">
+                    <td class="ps-4"><span class="text-muted">#${p.id}</span></td>
+                    <td><span class="badge bg-primary">${p.ticker}</span></td>
+                    <td class="fw-bold">R$ ${p.predicted_price.toFixed(2)}</td>
+                    <td>
+                        <i class="fas fa-clock text-muted me-1"></i>
+                        ${new Date(p.prediction_date).toLocaleString('pt-BR')}
+                    </td>
+                    <td><code class="small">${p.model_version || '-'}</code></td>
                 </tr>
             `).join('');
 
         } catch (error) {
             console.error(error);
-            document.getElementById('history-table').innerHTML =
-                '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar dados</td></tr>';
+            document.getElementById('history-table').innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
+                        Erro ao carregar dados
+                    </td>
+                </tr>
+            `;
         }
     });
 </script>

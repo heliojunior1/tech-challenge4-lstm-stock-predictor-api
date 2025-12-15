@@ -2,18 +2,26 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card p-4">
-            <h2 class="mb-4"><i class="fas fa-chart-line me-2"></i> Predição de Preços</h2>
+    <div class="col-lg-10">
+        <div class="card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-magic fa-3x mb-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                <h2 class="mb-2">Predição de Preços</h2>
+                <p class="text-muted">Use modelos LSTM treinados para prever preços de ações</p>
+            </div>
 
             <ul class="nav nav-tabs mb-4" id="predictTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="standard-tab" data-bs-toggle="tab" data-bs-target="#standard"
-                        type="button" role="tab" aria-selected="true">Padrão</button>
+                        type="button" role="tab" aria-selected="true">
+                        <i class="fas fa-bolt me-1"></i>Padrão
+                    </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom" type="button"
-                        role="tab" aria-selected="false">Customizado (Histórico)</button>
+                        role="tab" aria-selected="false">
+                        <i class="fas fa-sliders-h me-1"></i>Customizado (Histórico)
+                    </button>
                 </li>
             </ul>
 
@@ -21,46 +29,73 @@
                 <!-- Standard Predict -->
                 <div class="tab-pane fade show active" id="standard" role="tabpanel" aria-labelledby="standard-tab">
                     <form id="standard-form">
-                        <div class="mb-3">
-                            <label for="std-ticker" class="form-label">Ticker</label>
-                            <input type="text" class="form-control" id="std-ticker" placeholder="Ex: PETR4.SA" required>
+                        <div class="mb-4">
+                            <label for="std-ticker" class="form-label">
+                                <i class="fas fa-tag me-1"></i>Ticker
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="std-ticker" placeholder="Ex: PETR4.SA, AAPL, DIS" required>
+                            <div class="form-text">Use um ticker que já tenha um modelo treinado</div>
                         </div>
-                        <div class="mb-3">
-                            <label for="std-days" class="form-label">Dias para prever</label>
+                        <div class="mb-4">
+                            <label for="std-days" class="form-label">
+                                <i class="fas fa-calendar-day me-1"></i>Dias para prever
+                            </label>
                             <input type="number" class="form-control" id="std-days" value="1" min="1" max="30">
                         </div>
-                        <button type="submit" class="btn btn-primary w-100" id="std-btn">Prever</button>
+                        <button type="submit" class="btn btn-success btn-lg w-100" id="std-btn">
+                            <i class="fas fa-magic me-2"></i>Fazer Previsão
+                        </button>
                     </form>
                 </div>
 
                 <!-- Custom Predict -->
                 <div class="tab-pane fade" id="custom" role="tabpanel" aria-labelledby="custom-tab">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Modo Customizado:</strong> Forneça seus próprios dados históricos para obter previsões.
+                    </div>
                     <form id="custom-form">
-                        <div class="mb-3">
-                            <label for="custom-ticker" class="form-label">Modelo Base (Ticker)</label>
-                            <input type="text" class="form-control" id="custom-ticker" placeholder="Ex: PETR4.SA"
-                                required>
+                        <div class="mb-4">
+                            <label for="custom-ticker" class="form-label">
+                                <i class="fas fa-brain me-1"></i>Modelo Base (Ticker)
+                            </label>
+                            <input type="text" class="form-control" id="custom-ticker" placeholder="Ex: PETR4.SA" required>
+                            <div class="form-text">Selecione qual modelo treinado usar para a previsão</div>
                         </div>
-                        <div class="mb-3">
-                            <label for="custom-prices" class="form-label">Preços Históricos (JSON List)</label>
+                        <div class="mb-4">
+                            <label for="custom-prices" class="form-label">
+                                <i class="fas fa-list-ol me-1"></i>Preços Históricos
+                            </label>
                             <textarea class="form-control" id="custom-prices" rows="5"
-                                placeholder="[30.5, 31.0, 32.1...]" required></textarea>
-                            <div class="form-text">Mínimo 60 valores. Cole uma lista JSON ou valores separados por
-                                vírgula.</div>
+                                placeholder='[30.5, 31.0, 32.1, 31.8, 33.2, ...]' required></textarea>
+                            <div class="form-text">
+                                <i class="fas fa-exclamation-circle text-warning me-1"></i>
+                                Mínimo <strong>60 valores</strong>. Cole uma lista JSON ou valores separados por vírgula.
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="custom-days" class="form-label">Dias para prever</label>
+                        <div class="mb-4">
+                            <label for="custom-days" class="form-label">
+                                <i class="fas fa-calendar-day me-1"></i>Dias para prever
+                            </label>
                             <input type="number" class="form-control" id="custom-days" value="1" min="1" max="30">
                         </div>
-                        <button type="submit" class="btn btn-success w-100" id="custom-btn">Prever Customizado</button>
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="custom-btn">
+                            <i class="fas fa-cogs me-2"></i>Prever com Dados Customizados
+                        </button>
                     </form>
                 </div>
             </div>
 
-            <div id="result-area" class="mt-4 d-none alert alert-info">
-                <h5>Resultado:</h5>
-                <ul id="predictions-list" class="list-group"></ul>
-                <small class="text-muted mt-2 d-block" id="model-info"></small>
+            <div id="result-area" class="mt-4 d-none">
+                <div class="alert alert-success">
+                    <h5 class="d-flex align-items-center mb-3">
+                        <i class="fas fa-chart-line fa-lg me-2"></i>
+                        Resultado da Previsão
+                    </h5>
+                    <div id="predictions-list" class="mb-3"></div>
+                    <hr>
+                    <small class="text-muted" id="model-info"></small>
+                </div>
             </div>
 
         </div>
@@ -90,14 +125,21 @@
         resultArea.classList.add('d-none');
         list.innerHTML = '';
 
+        // Get button and show loading
+        const btn = type === 'standard' ? document.getElementById('std-btn') : document.getElementById('custom-btn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando...';
+
         try {
             let response;
+            let ticker;
             if (type === 'standard') {
-                const ticker = document.getElementById('std-ticker').value.toUpperCase();
+                ticker = document.getElementById('std-ticker').value.toUpperCase();
                 const days = document.getElementById('std-days').value;
                 response = await axios.post(`/api/v1/predict/${ticker}`, { days: parseInt(days) });
             } else {
-                const ticker = document.getElementById('custom-ticker').value.toUpperCase();
+                ticker = document.getElementById('custom-ticker').value.toUpperCase();
                 const days = document.getElementById('custom-days').value;
                 let pricesRaw = document.getElementById('custom-prices').value;
 
@@ -110,7 +152,7 @@
                         prices = pricesRaw.split(',').map(p => parseFloat(p.trim()));
                     }
                 } catch (e) {
-                    throw new Error("Formato de preços inválido");
+                    throw new Error("Formato de preços inválido. Use JSON array ou valores separados por vírgula.");
                 }
 
                 response = await axios.post('/api/v1/predict/custom', {
@@ -121,24 +163,43 @@
             }
 
             // Display results
-            resultArea.classList.remove('d-none', 'alert-danger');
-            resultArea.classList.add('alert-info');
+            resultArea.classList.remove('d-none');
+            resultArea.querySelector('.alert').className = 'alert alert-success';
 
+            let html = `<div class="row g-3">`;
             response.data.predictions.forEach(p => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                li.innerHTML = `Dia ${p.day} <strong>R$ ${p.predicted_price.toFixed(2)}</strong>`;
-                list.appendChild(li);
+                html += `
+                    <div class="col-md-4">
+                        <div class="text-center p-3 rounded" style="background: rgba(17, 153, 142, 0.1);">
+                            <small class="text-muted d-block">Dia ${p.day}</small>
+                            <span class="fs-4 fw-bold" style="color: #11998e;">R$ ${p.predicted_price.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
             });
+            html += `</div>`;
+            list.innerHTML = html;
 
             const modelUsed = response.data.model || response.data.model_used;
-            modelInfo.textContent = `Modelo utilizado: ${modelUsed}`;
+            modelInfo.innerHTML = `<i class="fas fa-microchip me-1"></i>Modelo: <code>${modelUsed}</code> | <i class="fas fa-tag ms-2 me-1"></i>Ticker: <strong>${ticker}</strong>`;
 
         } catch (error) {
             console.error(error);
-            resultArea.classList.remove('d-none', 'alert-info');
-            resultArea.classList.add('alert-danger');
-            list.innerHTML = `Error: ${error.response?.data?.detail || error.message}`;
+            resultArea.classList.remove('d-none');
+            resultArea.querySelector('.alert').className = 'alert alert-danger';
+            list.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <strong>Erro na Previsão</strong>
+                        <p class="mb-0">${error.response?.data?.detail || error.message}</p>
+                    </div>
+                </div>
+            `;
+            modelInfo.innerHTML = '';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     }
 </script>
