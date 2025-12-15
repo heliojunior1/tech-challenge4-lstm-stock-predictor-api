@@ -75,9 +75,25 @@
                             <label for="custom-ticker" class="form-label">
                                 <i class="fas fa-brain me-1"></i>Modelo Base (Ticker)
                             </label>
-                            <input type="text" class="form-control" id="custom-ticker" placeholder="Ex: PETR4.SA" required>
-                            <div class="form-text">Selecione qual modelo treinado usar para a previsão</div>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="custom-ticker" placeholder="Ex: PETR4.SA" required>
+                                <button class="btn btn-outline-secondary" type="button" id="btn-load-models-custom">
+                                    <i class="fas fa-search"></i> Buscar Modelos
+                                </button>
+                            </div>
+                            <div class="form-text">Digite o ticker e clique em "Buscar Modelos" para ver os disponíveis</div>
                         </div>
+                        
+                        <div class="mb-4" id="model-select-container-custom" style="display: none;">
+                            <label for="custom-model" class="form-label">
+                                <i class="fas fa-brain me-1"></i>Selecionar Modelo
+                            </label>
+                            <select class="form-select" id="custom-model">
+                                <option value="">Mais recente (padrão)</option>
+                            </select>
+                            <div class="form-text" id="model-info-text-custom"></div>
+                        </div>
+                        
                         <div class="mb-4">
                             <label for="custom-prices" class="form-label">
                                 <i class="fas fa-list-ol me-1"></i>Preços Históricos
@@ -121,25 +137,39 @@
 
 {% block scripts %}
 <script>
-    // Load models when clicking search button
-    document.getElementById('btn-load-models').addEventListener('click', loadModels);
+    // Load models when clicking search button - Standard
+    document.getElementById('btn-load-models').addEventListener('click', () => loadModels('standard'));
     
-    // Also load on Enter key in ticker field
+    // Load models when clicking search button - Custom
+    document.getElementById('btn-load-models-custom').addEventListener('click', () => loadModels('custom'));
+    
+    // Also load on Enter key in ticker field - Standard
     document.getElementById('std-ticker').addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            loadModels();
+            loadModels('standard');
+        }
+    });
+    
+    // Also load on Enter key in ticker field - Custom
+    document.getElementById('custom-ticker').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loadModels('custom');
         }
     });
 
-    async function loadModels() {
-        const ticker = document.getElementById('std-ticker').value.toUpperCase();
+    async function loadModels(type) {
+        const isStandard = type === 'standard';
+        const tickerInput = document.getElementById(isStandard ? 'std-ticker' : 'custom-ticker');
+        const ticker = tickerInput.value.toUpperCase();
+        
         if (!ticker) {
             alert('Digite um ticker primeiro');
             return;
         }
         
-        const btn = document.getElementById('btn-load-models');
+        const btn = document.getElementById(isStandard ? 'btn-load-models' : 'btn-load-models-custom');
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
@@ -152,9 +182,9 @@
             const allModelsResponse = await axios.get(`/api/v1/models?ticker=${ticker}`);
             const allModels = allModelsResponse.data.models || [];
             
-            const select = document.getElementById('std-model');
-            const container = document.getElementById('model-select-container');
-            const infoText = document.getElementById('model-info-text');
+            const select = document.getElementById(isStandard ? 'std-model' : 'custom-model');
+            const container = document.getElementById(isStandard ? 'model-select-container' : 'model-select-container-custom');
+            const infoText = document.getElementById(isStandard ? 'model-info-text' : 'model-info-text-custom');
             
             select.innerHTML = '<option value="">🕐 Mais recente (padrão)</option>';
             
@@ -177,8 +207,8 @@
             
         } catch (error) {
             console.error(error);
-            const container = document.getElementById('model-select-container');
-            const infoText = document.getElementById('model-info-text');
+            const container = document.getElementById(isStandard ? 'model-select-container' : 'model-select-container-custom');
+            const infoText = document.getElementById(isStandard ? 'model-info-text' : 'model-info-text-custom');
             container.style.display = 'block';
             infoText.innerHTML = `<i class="fas fa-times-circle text-danger me-1"></i>Nenhum modelo encontrado para <strong>${ticker}</strong>. <a href="/train">Treinar agora</a>`;
         } finally {
@@ -239,6 +269,7 @@
             } else {
                 ticker = document.getElementById('custom-ticker').value.toUpperCase();
                 const days = document.getElementById('custom-days').value;
+                const modelPath = document.getElementById('custom-model').value;
                 let pricesRaw = document.getElementById('custom-prices').value;
 
                 // Parse prices
@@ -253,11 +284,17 @@
                     throw new Error("Formato de preços inválido. Use JSON array ou valores separados por vírgula.");
                 }
 
-                response = await axios.post('/api/v1/predict/custom', {
+                const payload = {
                     historical_prices: prices,
                     days: parseInt(days),
                     model_ticker: ticker
-                });
+                };
+                
+                if (modelPath) {
+                    payload.model_path = modelPath;
+                }
+
+                response = await axios.post('/api/v1/predict/custom', payload);
             }
 
             // Display results
