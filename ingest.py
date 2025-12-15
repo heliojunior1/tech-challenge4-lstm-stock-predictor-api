@@ -62,6 +62,7 @@ def download_alphavantage(ticker: str, start_date: str, end_date: str) -> pd.Dat
             
         time_series = data.get("Time Series (Daily)", {})
         if not time_series:
+            print(f"   [WARN] Alpha Vantage: Serie temporal nao encontrada. Resposta: {data}")
             return pd.DataFrame()
             
         # Converter JSON para DataFrame
@@ -72,7 +73,16 @@ def download_alphavantage(ticker: str, start_date: str, end_date: str) -> pd.Dat
         
         # Filtrar por data
         mask = (df.index >= pd.to_datetime(start_date)) & (df.index <= pd.to_datetime(end_date))
-        df = df.loc[mask]
+        df_filtered = df.loc[mask]
+        
+        if df_filtered.empty:
+             min_date = df.index.min().date()
+             max_date = df.index.max().date()
+             print(f"   [WARN] Dados filtrados resultaram vazio (Free Tier limita a 100 ultimos dias).")
+             print(f"          Solicitado: {start_date} a {end_date}")
+             print(f"          Disponivel: {min_date} a {max_date}")
+        
+        df = df_filtered
         
         # Renomear colunas para formato yfinance/interno
         df = df.rename(columns={

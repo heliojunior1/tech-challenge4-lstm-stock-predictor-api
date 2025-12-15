@@ -144,6 +144,8 @@ async def ingest_endpoint(
             start_date=start_date,
             end_date=end_date
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
