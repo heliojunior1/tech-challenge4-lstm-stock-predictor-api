@@ -50,7 +50,7 @@ app.add_middleware(
 # Incluir routers
 app.include_router(training.router, prefix="/api/v1", tags=["Treinamento"])
 app.include_router(inference.router, prefix="/api/v1", tags=["Inferencia"])
-app.include_router(monitoring.router, tags=["Monitoramento"])
+app.include_router(monitoring.router, prefix="/api/v1", tags=["Monitoramento"])
 app.include_router(frontend.router, tags=["Frontend"])
 
 # Mount Static Files
