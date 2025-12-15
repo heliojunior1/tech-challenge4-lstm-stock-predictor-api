@@ -224,3 +224,83 @@ def predict_price(ticker: str, days: int = 1, model_path: str = None) -> Dict:
     if model_path:
         service.load_model(model_path)
     return service.predict(days)
+
+
+def predict_from_history(
+    historical_prices: List[float], 
+    days: int, 
+    model_ticker: str
+) -> Dict:
+    """
+    Faz previsão usando dados históricos fornecidos pelo usuário.
+    
+    Args:
+        historical_prices: Lista de preços históricos (mínimo 60 valores)
+        days: Número de dias para prever
+        model_ticker: Ticker do modelo a ser usado
+    
+    Returns:
+        Dicionário com previsões
+    """
+    if len(historical_prices) < 60:
+        raise ValueError("Mínimo de 60 preços históricos necessários")
+    
+    # 1. Carregar modelo do ticker especificado
+    session = SessionLocal()
+    try:
+        trained = session.query(TrainedModel).filter(
+            TrainedModel.ticker == model_ticker
+        ).order_by(TrainedModel.created_at.desc()).first()
+        
+        if not trained:
+            raise ValueError(f"Nenhum modelo treinado encontrado para {model_ticker}")
+        
+        model_path = Path(trained.model_path)
+    finally:
+        session.close()
+    
+    if not model_path.exists():
+        raise FileNotFoundError(f"Arquivo do modelo não encontrado: {model_path}")
+    
+    # 2. Carregar checkpoint do modelo
+    checkpoint = torch.load(model_path, weights_only=False)
+    
+    model = StockLSTM.from_config(checkpoint["model_config"])
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+    
+    # 3. Normalizar dados de entrada do usuário (0-1)
+    prices_array = np.array(historical_prices).reshape(-1, 1)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    prices_scaled = scaler.fit_transform(prices_array)
+    
+    # 4. Preparar sequência de entrada (últimos 60 valores)
+    sequence_length = 60
+    last_sequence = prices_scaled[-sequence_length:]
+    current_sequence = torch.tensor(last_sequence, dtype=torch.float32).unsqueeze(0)
+    
+    # 5. Fazer previsões
+    predictions = []
+    for day in range(days):
+        with torch.no_grad():
+            pred_scaled = model(current_sequence)
+        
+        # Inverter escala para valor real
+        pred_value = scaler.inverse_transform(pred_scaled.numpy())[0, 0]
+        predictions.append({
+            "day": day + 1,
+            "predicted_price": float(pred_value)
+        })
+        
+        # Atualizar sequência para próxima previsão (rolling window)
+        if days > 1:
+            new_value = pred_scaled.view(1, 1, 1)
+            current_sequence = torch.cat([current_sequence[:, 1:, :], new_value], dim=1)
+    
+    return {
+        "predictions": predictions,
+        "model_used": model_path.name,
+        "model_ticker": model_ticker,
+        "input_prices_count": len(historical_prices)
+    }
+

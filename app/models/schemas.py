@@ -109,4 +109,38 @@ class IngestResponse(BaseModel):
     """Response da ingestão de dados."""
     ticker: str
     records_inserted: int
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
     message: str = "Dados ingeridos com sucesso"
+
+
+# ============== Custom Predict Schemas ==============
+
+class CustomPredictRequest(BaseModel):
+    """Request para previsão com dados históricos fornecidos pelo usuário."""
+    model_config = ConfigDict(protected_namespaces=())
+    
+    historical_prices: List[float] = Field(
+        ..., 
+        min_length=60,
+        description="Lista de preços históricos (mínimo 60 valores)"
+    )
+    days: int = Field(
+        default=1, 
+        ge=1, 
+        le=30, 
+        description="Número de dias para prever (1-30)"
+    )
+    model_ticker: str = Field(
+        ..., 
+        description="Ticker do modelo a ser usado (ex: PETR4.SA, AAPL)"
+    )
+
+
+class CustomPredictResponse(BaseModel):
+    """Response da previsão com dados históricos."""
+    predictions: List[PredictionItem]
+    model_used: str
+    input_prices_count: int
+    model_ticker: str
+

@@ -107,17 +107,22 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 |--------|----------|-----------|
 | GET | `/health` | Health check |
 | GET | `/metrics` | Métricas Prometheus |
-| POST | `/api/v1/ingest/{ticker}` | Ingerir dados |
+| POST | `/api/v1/ingest/{ticker}` | Ingerir dados (start_date, end_date) |
 | POST | `/api/v1/train/{ticker}` | Treinar modelo |
-| POST | `/api/v1/predict/{ticker}` | Fazer previsão |
+| POST | `/api/v1/predict/{ticker}` | Previsão por ticker (dados do banco) |
+| POST | `/api/v1/predict/custom` | **Previsão com dados do usuário** |
 | GET | `/api/v1/models` | Listar modelos |
 | GET | `/api/v1/predictions/history` | Histórico |
 
 ### Exemplos de Uso
 
-#### Ingerir Dados
+#### Ingerir Dados (com datas específicas)
 ```bash
-curl -X POST "http://localhost:8000/api/v1/ingest/PETR4.SA?period=2y"
+# Usando datas específicas (formato YYYY-MM-DD)
+curl -X POST "http://localhost:8000/api/v1/ingest/PETR4.SA?start_date=2018-01-01&end_date=2024-07-20"
+
+# Sem datas (usa últimos 2 anos por padrão)
+curl -X POST "http://localhost:8000/api/v1/ingest/PETR4.SA"
 ```
 
 #### Treinar Modelo
@@ -127,12 +132,37 @@ curl -X POST "http://localhost:8000/api/v1/train/PETR4.SA" \
   -d '{"epochs": 50, "batch_size": 32}'
 ```
 
-#### Fazer Previsão
+#### Fazer Previsão (por ticker)
 ```bash
 curl -X POST "http://localhost:8000/api/v1/predict/PETR4.SA" \
   -H "Content-Type: application/json" \
   -d '{"days": 1}'
 ```
+
+#### Fazer Previsão (com dados do usuário)
+
+Este endpoint atende ao requisito do Tech Challenge:
+> "A API deve permitir que o usuário forneça dados históricos de preços e receba previsões"
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/predict/custom" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "historical_prices": [30.5, 30.7, 30.9, 31.1, 31.3, 31.5, 31.7, 31.9, 32.1, 32.3,
+                          32.5, 32.7, 32.9, 33.1, 33.3, 33.5, 33.7, 33.9, 34.1, 34.3,
+                          34.5, 34.7, 34.9, 35.1, 35.3, 35.5, 35.7, 35.9, 36.1, 36.3,
+                          36.5, 36.7, 36.9, 37.1, 37.3, 37.5, 37.7, 37.9, 38.1, 38.3,
+                          38.5, 38.7, 38.9, 39.1, 39.3, 39.5, 39.7, 39.9, 40.1, 40.3,
+                          40.5, 40.7, 40.9, 41.1, 41.3, 41.5, 41.7, 41.9, 42.1, 42.3],
+    "days": 3,
+    "model_ticker": "PETR4.SA"
+  }'
+```
+
+**Parâmetros:**
+- `historical_prices`: Lista de preços históricos (mínimo 60 valores)
+- `days`: Número de dias para prever (1-30)
+- `model_ticker`: Ticker do modelo a ser usado
 
 ## 🧠 Modelo LSTM
 

@@ -3,6 +3,10 @@ Configurações da aplicação
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Carregar variaveis de ambiente
+load_dotenv()
 
 # Diretórios
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,6 +19,10 @@ MODELS_DIR.mkdir(exist_ok=True)
 
 # Banco de dados
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/dados_mercado.db")
+
+# API Keys para fontes de dados
+# Alpha Vantage - Obter chave gratuita em: https://www.alphavantage.co/support/#api-key
+ALPHAVANTAGE_API_KEY = os.getenv("ALPHAVANTAGE_API_KEY", "demo")
 
 # Configurações do modelo LSTM
 LSTM_CONFIG = {
@@ -36,3 +44,4 @@ TRAINING_CONFIG = {
 
 # Tickers padrão
 DEFAULT_TICKERS = ["PETR4.SA", "DIS"]
+

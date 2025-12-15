@@ -10,12 +10,78 @@ from app.models.schemas import (
     ModelsListResponse, 
     ModelInfo,
     PredictionHistoryResponse,
-    PredictionHistory
+    PredictionHistory,
+    CustomPredictRequest,
+    CustomPredictResponse
 )
-from app.services.predict_service import PredictService, predict_price
+from app.services.predict_service import PredictService, predict_price, predict_from_history
 from app.routers.monitoring import record_prediction
 
 router = APIRouter()
+
+
+# IMPORTANTE: /predict/custom deve vir ANTES de /predict/{ticker}
+# para evitar que 'custom' seja interpretado como um ticker
+@router.post("/predict/custom", response_model=CustomPredictResponse)
+async def predict_custom_endpoint(request: CustomPredictRequest):
+    """
+    Faz previsao a partir de dados historicos fornecidos pelo usuario.
+    
+    Este endpoint atende ao requisito do Tech Challenge:
+    "A API deve permitir que o usuario forneca dados historicos de precos 
+    e receba previsoes dos precos futuros."
+    
+    - **historical_prices**: Lista de precos historicos (minimo 60 valores)
+    - **days**: Numero de dias para prever (1-30)
+    - **model_ticker**: Ticker do modelo a ser usado (ex: PETR4.SA, AAPL)
+    
+    Exemplo de request:
+    ```json
+    {
+        "historical_prices": [30.5, 31.0, 31.5, ..., 36.1],
+        "days": 1,
+        "model_ticker": "PETR4.SA"
+    }
+    ```
+    """
+    try:
+        # Validar quantidade minima de precos
+        if len(request.historical_prices) < 60:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Minimo de 60 precos historicos necessarios. Recebido: {len(request.historical_prices)}"
+            )
+        
+        # Validar que todos os precos sao positivos
+        if any(p <= 0 for p in request.historical_prices):
+            raise HTTPException(
+                status_code=400, 
+                detail="Todos os precos devem ser valores positivos"
+            )
+        
+        # Fazer previsao
+        result = predict_from_history(
+            historical_prices=request.historical_prices,
+            days=request.days,
+            model_ticker=request.model_ticker
+        )
+        
+        # Registrar metrica Prometheus
+        for pred in result["predictions"]:
+            record_prediction(request.model_ticker, pred["predicted_price"])
+        
+        return CustomPredictResponse(
+            predictions=result["predictions"],
+            model_used=result["model_used"],
+            input_prices_count=result["input_prices_count"],
+            model_ticker=result["model_ticker"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/predict/{ticker}", response_model=PredictResponse)
@@ -25,6 +91,8 @@ async def predict_endpoint(
 ):
     """
     Faz previsao de preco para o ticker especificado.
+    
+    Usa dados do banco de dados (previamente ingeridos) e modelo treinado para o ticker.
     
     - **ticker**: Simbolo da acao (ex: PETR4.SA, AAPL)
     - **days**: Numero de dias para prever (1-30)
@@ -107,3 +175,5 @@ async def prediction_history_endpoint(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+

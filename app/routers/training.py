@@ -120,17 +120,30 @@ async def train_status_endpoint(ticker: str):
 
 
 @router.post("/ingest/{ticker}", response_model=IngestResponse)
-async def ingest_endpoint(ticker: str, period: str = "2y"):
+async def ingest_endpoint(
+    ticker: str, 
+    start_date: str = None,
+    end_date: str = None
+):
     """
     Ingere dados do Yahoo Finance para o banco de dados.
     
     - **ticker**: Simbolo da acao (ex: PETR4.SA, AAPL)
-    - **period**: Periodo de historico (1y, 2y, 5y, max)
+    - **start_date**: Data inicial no formato YYYY-MM-DD (ex: 2018-01-01)
+    - **end_date**: Data final no formato YYYY-MM-DD (ex: 2024-07-20)
+    
+    Se nao informar datas, usa os ultimos 2 anos.
     """
     try:
         # Importar funcao de ingestao
         from ingest import ingest_data
-        records = ingest_data(ticker, period)
-        return IngestResponse(ticker=ticker, records_inserted=records)
+        records = ingest_data(ticker, start_date=start_date, end_date=end_date)
+        return IngestResponse(
+            ticker=ticker, 
+            records_inserted=records,
+            start_date=start_date,
+            end_date=end_date
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
