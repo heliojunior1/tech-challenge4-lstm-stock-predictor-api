@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <h2 class="mb-4"><i class="fas fa-brain me-2"></i> Treinamento de Modelo</h2>
+            <form id="train-form">
+                <div class="mb-3">
+                    <label for="ticker" class="form-label">Ticker da Ação</label>
+                    <input type="text" class="form-control" id="ticker" placeholder="Ex: PETR4.SA" required>
+                    <div class="form-text">Certifique-se de ter ingerido dados para este ticker antes.</div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="epochs" class="form-label">Épocas</label>
+                        <input type="number" class="form-control" id="epochs" value="100" min="1" max="1000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="batch_size" class="form-label">Batch Size</label>
+                        <input type="number" class="form-control" id="batch_size" value="32" min="8" max="256">
+                    </div>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="async_train">
+                    <label class="form-check-label" for="async_train">
+                        Treinar em Background (Assíncrono)
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="btn-submit">
+                    <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"
+                        aria-hidden="true"></span>
+                    Iniciar Treinamento
+                </button>
+            </form>
+
+            <div id="result" class="mt-4 d-none alert"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('train-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ticker = document.getElementById('ticker').value.toUpperCase();
+        const epochs = parseInt(document.getElementById('epochs').value);
+        const batchSize = parseInt(document.getElementById('batch_size').value);
+        const asyncTrain = document.getElementById('async_train').checked;
+
+        const btn = document.getElementById('btn-submit');
+        const spinner = document.getElementById('spinner');
+        const resultDiv = document.getElementById('result');
+
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        resultDiv.classList.add('d-none');
+
+        try {
+            const endpoint = asyncTrain ? `/api/v1/train/${ticker}/async` : `/api/v1/train/${ticker}`;
+            const payload = { epochs: epochs, batch_size: batchSize };
+
+            const response = await axios.post(endpoint, payload);
+
+            resultDiv.className = 'mt-4 alert alert-success';
+
+            if (asyncTrain) {
+                resultDiv.innerHTML = `
+                    <h4 class="alert-heading">Iniciado!</h4>
+                    <p>${response.data.message}</p>
+                    <p>Endpoint de status: <a href="${response.data.status_url}" target="_blank">${response.data.status_url}</a></p>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <h4 class="alert-heading">Concluído!</h4>
+                    <p>Modelo treinado com sucesso.</p>
+                    <ul>
+                        <li>RMSE: ${response.data.rmse.toFixed(4)}</li>
+                        <li>MAE: ${response.data.mae.toFixed(4)}</li>
+                    </ul>
+                `;
+            }
+            resultDiv.classList.remove('d-none');
+
+        } catch (error) {
+            console.error(error);
+            resultDiv.className = 'mt-4 alert alert-danger';
+            const msg = error.response?.data?.detail || error.message;
+            resultDiv.innerHTML = `<strong>Erro:</strong> ${msg}`;
+            resultDiv.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+</script>
+{% endblock %}

@@ -18,6 +18,25 @@ Desenvolver uma API que utiliza modelos LSTM para prever preços de ações da b
 | **Docker** | Containerização |
 | **Render** | Deploy na nuvem |
 
+
+## 🖥️ Frontend (Dashboard)
+
+A API agora acompanha uma interface web simples para facilitar o uso.
+
+### Acesso
+
+- **Dashboard**: [http://localhost:8000/](http://localhost:8000/)
+
+### Funcionalidades do Frontend
+
+1.  **Dashboard**: Visão geral de modelos treinados e previsões recentes.
+2.  **Ingestão**: Formulário para baixar dados históricos (com suporte a datas).
+3.  **Treinamento**: Interface para treinar novos modelos (síncrono ou assíncrono).
+4.  **Predição**:
+    *   **Padrão**: Prever usando ações cadastradas.
+    *   **Custom**: Prever usando dados históricos colados manualmente.
+5.  **Histórico**: Visualizar todas as previsões realizadas.
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -37,7 +56,10 @@ stock-predictor-api/
 │   └── routers/
 │       ├── training.py      # Endpoints de treino
 │       ├── inference.py     # Endpoints de previsão
-│       └── monitoring.py    # Métricas Prometheus
+│       ├── monitoring.py    # Métricas Prometheus
+│       └── frontend.py      # [NEW] Rotas do Frontend
+│   ├── templates/           # [NEW] Arquivos HTML (Jinja2)
+│   └── static/              # [NEW] Arquivos estáticos (CSS/JS)
 ├── data/models/             # Modelos treinados (.pt)
 ├── tests/
 ├── ingest.py                # Script de ingestão

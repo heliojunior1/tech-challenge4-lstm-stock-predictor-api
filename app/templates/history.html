@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="fas fa-history me-2"></i> Histórico de Previsões</h2>
+
+        <div class="card p-4">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ticker</th>
+                            <th>Preço Previsto</th>
+                            <th>Data Previsão</th>
+                            <th>Modelo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                        <tr>
+                            <td colspan="5" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const response = await axios.get('/api/v1/predictions/history?limit=50');
+            const tbody = document.getElementById('history-table');
+
+            if (response.data.predictions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum registro encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = response.data.predictions.map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td><span class="badge bg-secondary">${p.ticker}</span></td>
+                    <td>R$ ${p.predicted_price.toFixed(2)}</td>
+                    <td>${new Date(p.prediction_date).toLocaleString()}</td>
+                    <td><small class="text-muted">${p.model_version}</small></td>
+                </tr>
+            `).join('');
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('history-table').innerHTML =
+                '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar dados</td></tr>';
+        }
+    });
+</script>
+{% endblock %}

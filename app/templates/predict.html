@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card p-4">
+            <h2 class="mb-4"><i class="fas fa-chart-line me-2"></i> Predição de Preços</h2>
+
+            <ul class="nav nav-tabs mb-4" id="predictTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="standard-tab" data-bs-toggle="tab" data-bs-target="#standard"
+                        type="button" role="tab" aria-selected="true">Padrão</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom" type="button"
+                        role="tab" aria-selected="false">Customizado (Histórico)</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="predictTabContent">
+                <!-- Standard Predict -->
+                <div class="tab-pane fade show active" id="standard" role="tabpanel" aria-labelledby="standard-tab">
+                    <form id="standard-form">
+                        <div class="mb-3">
+                            <label for="std-ticker" class="form-label">Ticker</label>
+                            <input type="text" class="form-control" id="std-ticker" placeholder="Ex: PETR4.SA" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="std-days" class="form-label">Dias para prever</label>
+                            <input type="number" class="form-control" id="std-days" value="1" min="1" max="30">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="std-btn">Prever</button>
+                    </form>
+                </div>
+
+                <!-- Custom Predict -->
+                <div class="tab-pane fade" id="custom" role="tabpanel" aria-labelledby="custom-tab">
+                    <form id="custom-form">
+                        <div class="mb-3">
+                            <label for="custom-ticker" class="form-label">Modelo Base (Ticker)</label>
+                            <input type="text" class="form-control" id="custom-ticker" placeholder="Ex: PETR4.SA"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom-prices" class="form-label">Preços Históricos (JSON List)</label>
+                            <textarea class="form-control" id="custom-prices" rows="5"
+                                placeholder="[30.5, 31.0, 32.1...]" required></textarea>
+                            <div class="form-text">Mínimo 60 valores. Cole uma lista JSON ou valores separados por
+                                vírgula.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="custom-days" class="form-label">Dias para prever</label>
+                            <input type="number" class="form-control" id="custom-days" value="1" min="1" max="30">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100" id="custom-btn">Prever Customizado</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="result-area" class="mt-4 d-none alert alert-info">
+                <h5>Resultado:</h5>
+                <ul id="predictions-list" class="list-group"></ul>
+                <small class="text-muted mt-2 d-block" id="model-info"></small>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Standard Prediction
+    document.getElementById('standard-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        handlePrediction('standard');
+    });
+
+    // Custom Prediction
+    document.getElementById('custom-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        handlePrediction('custom');
+    });
+
+    async function handlePrediction(type) {
+        const resultArea = document.getElementById('result-area');
+        const list = document.getElementById('predictions-list');
+        const modelInfo = document.getElementById('model-info');
+
+        resultArea.classList.add('d-none');
+        list.innerHTML = '';
+
+        try {
+            let response;
+            if (type === 'standard') {
+                const ticker = document.getElementById('std-ticker').value.toUpperCase();
+                const days = document.getElementById('std-days').value;
+                response = await axios.post(`/api/v1/predict/${ticker}`, { days: parseInt(days) });
+            } else {
+                const ticker = document.getElementById('custom-ticker').value.toUpperCase();
+                const days = document.getElementById('custom-days').value;
+                let pricesRaw = document.getElementById('custom-prices').value;
+
+                // Parse prices
+                let prices;
+                try {
+                    if (pricesRaw.includes('[')) {
+                        prices = JSON.parse(pricesRaw);
+                    } else {
+                        prices = pricesRaw.split(',').map(p => parseFloat(p.trim()));
+                    }
+                } catch (e) {
+                    throw new Error("Formato de preços inválido");
+                }
+
+                response = await axios.post('/api/v1/predict/custom', {
+                    historical_prices: prices,
+                    days: parseInt(days),
+                    model_ticker: ticker
+                });
+            }
+
+            // Display results
+            resultArea.classList.remove('d-none', 'alert-danger');
+            resultArea.classList.add('alert-info');
+
+            response.data.predictions.forEach(p => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `Dia ${p.day} <strong>R$ ${p.predicted_price.toFixed(2)}</strong>`;
+                list.appendChild(li);
+            });
+
+            const modelUsed = response.data.model || response.data.model_used;
+            modelInfo.textContent = `Modelo utilizado: ${modelUsed}`;
+
+        } catch (error) {
+            console.error(error);
+            resultArea.classList.remove('d-none', 'alert-info');
+            resultArea.classList.add('alert-danger');
+            list.innerHTML = `Error: ${error.response?.data?.detail || error.message}`;
+        }
+    }
+</script>
+{% endblock %}

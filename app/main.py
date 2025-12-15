@@ -8,8 +8,9 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import time
 
+from fastapi.staticfiles import StaticFiles
 from app.database import init_db
-from app.routers import training, inference, monitoring
+from app.routers import training, inference, monitoring, frontend
 from app import __version__, __app__, __author__
 
 
@@ -50,13 +51,22 @@ app.add_middleware(
 app.include_router(training.router, prefix="/api/v1", tags=["Treinamento"])
 app.include_router(inference.router, prefix="/api/v1", tags=["Inferencia"])
 app.include_router(monitoring.router, tags=["Monitoramento"])
+app.include_router(frontend.router, tags=["Frontend"])
+
+# Mount Static Files
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
 # ============== Endpoints Raiz ==============
 
-@app.get("/", tags=["Root"])
-async def root():
-    """Endpoint raiz com informacoes da API."""
+# Nota: O endpoint raiz "/" agora é servido pelo frontend.router em app/routers/frontend.py
+# O antigo endpoint JSON foi removido para dar lugar ao Dashboard.
+
+@app.get("/api/info", tags=["Root"])
+async def api_info():
+    """Endpoint informativo da API (antigo root)."""
     return {
         "app": __app__,
         "version": __version__,

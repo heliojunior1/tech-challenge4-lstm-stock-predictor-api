@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 text-center">
+        <h1 class="display-4">Dashboard</h1>
+        <p class="lead text-muted">Visão geral do sistema de previsão de ações</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Card Models -->
+    <div class="col-md-4">
+        <div class="card h-100 p-4 text-center">
+            <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+            <h3>Modelos Treinados</h3>
+            <p class="metric-value" id="total-models">-</p>
+            <a href="/train" class="btn btn-outline-primary stretched-link">Novo Treinamento</a>
+        </div>
+    </div>
+
+    <!-- Card Predictions -->
+    <div class="col-md-4">
+        <div class="card h-100 p-4 text-center">
+            <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+            <h3>Previsões Feitas</h3>
+            <p class="metric-value" id="total-predictions">-</p>
+            <a href="/predict" class="btn btn-outline-success stretched-link">Nova Previsão</a>
+        </div>
+    </div>
+
+    <!-- Card Ingest -->
+    <div class="col-md-4">
+        <div class="card h-100 p-4 text-center">
+            <i class="fas fa-database fa-3x text-info mb-3"></i>
+            <h3>Ingestão de Dados</h3>
+            <p class="text-muted mt-3">Atualize a base de dados do Yahoo Finance</p>
+            <a href="/ingest" class="btn btn-outline-info mt-auto stretched-link">Ingerir Dados</a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5 class="card-title">Modelos por Ticker</h5>
+            <div id="models-chart" style="height: 200px;">Carregando...</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h5 class="card-title">Previsões Recentes</h5>
+            <ul class="list-group list-group-flush" id="recent-predictions">
+                <li class="list-group-item">Carregando...</li>
+            </ul>
+            <div class="card-footer bg-white border-0 text-end">
+                <a href="/history" class="small">Ver histórico completo</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            // Fetch metrics
+            const response = await axios.get('/api/v1/metrics/json');
+            const data = response.data;
+
+            document.getElementById('total-models').textContent = data.total_models;
+            document.getElementById('total-predictions').textContent = data.total_predictions;
+
+            // Populate Models Chart (Simple list for now)
+            const modelsDiv = document.getElementById('models-chart');
+            modelsDiv.innerHTML = '<ul class="list-group list-group-flush">' +
+                Object.entries(data.models_by_ticker).map(([ticker, count]) =>
+                    `<li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${ticker} <span class="badge bg-primary rounded-pill">${count}</span>
+                    </li>`
+                ).join('') + '</ul>';
+
+            // Fetch recent predictions
+            const historyResponse = await axios.get('/api/v1/predictions/history?limit=5');
+            const historyDiv = document.getElementById('recent-predictions');
+            if (historyResponse.data.predictions.length === 0) {
+                historyDiv.innerHTML = '<li class="list-group-item">Nenhuma previsão encontrada</li>';
+            } else {
+                historyDiv.innerHTML = historyResponse.data.predictions.map(p =>
+                    `<li class="list-group-item">
+                        <strong>${p.ticker}</strong>: R$ ${p.predicted_price.toFixed(2)}
+                        <span class="text-muted small ms-2">${new Date(p.prediction_date).toLocaleDateString()}</span>
+                    </li>`
+                ).join('');
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao carregar dados do dashboard');
+        }
+    });
+</script>
+{% endblock %}

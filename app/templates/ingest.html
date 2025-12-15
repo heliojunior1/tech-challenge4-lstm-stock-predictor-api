@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <h2 class="mb-4"><i class="fas fa-database me-2"></i> Ingestão de Dados</h2>
+            <form id="ingest-form">
+                <div class="mb-3">
+                    <label for="ticker" class="form-label">Ticker da Ação</label>
+                    <input type="text" class="form-control" id="ticker" placeholder="Ex: PETR4.SA" required>
+                    <div class="form-text">Ex: PETR4.SA, AAPL, MSFT, DIS</div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label">Data Inicial (Opcional)</label>
+                        <input type="date" class="form-control" id="start_date">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label">Data Final (Opcional)</label>
+                        <input type="date" class="form-control" id="end_date">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" id="btn-submit">
+                    <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"
+                        aria-hidden="true"></span>
+                    Baixar Dados
+                </button>
+            </form>
+
+            <div id="result" class="mt-4 d-none alert"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('ingest-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ticker = document.getElementById('ticker').value.toUpperCase();
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        const btn = document.getElementById('btn-submit');
+        const spinner = document.getElementById('spinner');
+        const resultDiv = document.getElementById('result');
+
+        // Reset UI
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        resultDiv.classList.add('d-none');
+
+        try {
+            let url = `/api/v1/ingest/${ticker}`;
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+
+            if ([...params].length > 0) url += `?${params.toString()}`;
+
+            const response = await axios.post(url);
+
+            resultDiv.className = 'mt-4 alert alert-success';
+            resultDiv.innerHTML = `
+                <h4 class="alert-heading">Sucesso!</h4>
+                <p>${response.data.message}</p>
+                <hr>
+                <p class="mb-0">Registros inseridos: <strong>${response.data.records_inserted}</strong></p>
+            `;
+            resultDiv.classList.remove('d-none');
+
+        } catch (error) {
+            console.error(error);
+            resultDiv.className = 'mt-4 alert alert-danger';
+            const msg = error.response?.data?.detail || error.message;
+            resultDiv.innerHTML = `<strong>Erro:</strong> ${msg}`;
+            resultDiv.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+</script>
+{% endblock %}
