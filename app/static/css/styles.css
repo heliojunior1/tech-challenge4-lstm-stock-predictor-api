@@ -379,9 +379,10 @@ body {
 }
 
 .nav-tabs .nav-link.active {
-    color: #667eea;
+    color: #667eea !important;
     border-bottom-color: #667eea;
     background: transparent;
+    -webkit-text-fill-color: #667eea;
 }
 
 /* ============== List Groups ============== */

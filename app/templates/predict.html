@@ -33,9 +33,25 @@
                             <label for="std-ticker" class="form-label">
                                 <i class="fas fa-tag me-1"></i>Ticker
                             </label>
-                            <input type="text" class="form-control form-control-lg" id="std-ticker" placeholder="Ex: PETR4.SA, AAPL, DIS" required>
-                            <div class="form-text">Use um ticker que já tenha um modelo treinado</div>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-lg" id="std-ticker" placeholder="Ex: PETR4.SA, AAPL, DIS" required>
+                                <button class="btn btn-outline-secondary" type="button" id="btn-load-models">
+                                    <i class="fas fa-search"></i> Buscar Modelos
+                                </button>
+                            </div>
+                            <div class="form-text">Digite o ticker e clique em "Buscar Modelos" para ver os disponíveis</div>
                         </div>
+                        
+                        <div class="mb-4" id="model-select-container" style="display: none;">
+                            <label for="std-model" class="form-label">
+                                <i class="fas fa-brain me-1"></i>Selecionar Modelo
+                            </label>
+                            <select class="form-select" id="std-model">
+                                <option value="">Mais recente (padrão)</option>
+                            </select>
+                            <div class="form-text" id="model-info-text"></div>
+                        </div>
+                        
                         <div class="mb-4">
                             <label for="std-days" class="form-label">
                                 <i class="fas fa-calendar-day me-1"></i>Dias para prever
@@ -105,6 +121,80 @@
 
 {% block scripts %}
 <script>
+    // Load models when clicking search button
+    document.getElementById('btn-load-models').addEventListener('click', loadModels);
+    
+    // Also load on Enter key in ticker field
+    document.getElementById('std-ticker').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            loadModels();
+        }
+    });
+
+    async function loadModels() {
+        const ticker = document.getElementById('std-ticker').value.toUpperCase();
+        if (!ticker) {
+            alert('Digite um ticker primeiro');
+            return;
+        }
+        
+        const btn = document.getElementById('btn-load-models');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        
+        try {
+            const response = await axios.get(`/api/v1/models/${ticker}`);
+            const models = Array.isArray(response.data) ? response.data : [response.data];
+            
+            // Also get all models for this ticker
+            const allModelsResponse = await axios.get(`/api/v1/models?ticker=${ticker}`);
+            const allModels = allModelsResponse.data.models || [];
+            
+            const select = document.getElementById('std-model');
+            const container = document.getElementById('model-select-container');
+            const infoText = document.getElementById('model-info-text');
+            
+            select.innerHTML = '<option value="">🕐 Mais recente (padrão)</option>';
+            
+            if (allModels.length > 0) {
+                allModels.forEach((m, idx) => {
+                    const date = new Date(m.created_at).toLocaleString('pt-BR');
+                    const rmse = m.rmse ? m.rmse.toFixed(4) : 'N/A';
+                    const isLatest = idx === 0 ? ' ⭐' : '';
+                    select.innerHTML += `<option value="${m.model_path}">
+                        ${m.model_path.split(/[/\\]/).pop()} | RMSE: ${rmse} | ${date}${isLatest}
+                    </option>`;
+                });
+                
+                container.style.display = 'block';
+                infoText.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i><strong>${allModels.length}</strong> modelo(s) encontrado(s) para <strong>${ticker}</strong>`;
+            } else {
+                container.style.display = 'block';
+                infoText.innerHTML = `<i class="fas fa-exclamation-circle text-warning me-1"></i>Nenhum modelo encontrado para <strong>${ticker}</strong>. Treine um modelo primeiro.`;
+            }
+            
+        } catch (error) {
+            console.error(error);
+            const container = document.getElementById('model-select-container');
+            const infoText = document.getElementById('model-info-text');
+            container.style.display = 'block';
+            infoText.innerHTML = `<i class="fas fa-times-circle text-danger me-1"></i>Nenhum modelo encontrado para <strong>${ticker}</strong>. <a href="/train">Treinar agora</a>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+    
+    // Show model metrics when selected
+    document.getElementById('std-model').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        if (this.value) {
+            console.log('Modelo selecionado:', this.value);
+        }
+    });
+
     // Standard Prediction
     document.getElementById('standard-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -137,7 +227,15 @@
             if (type === 'standard') {
                 ticker = document.getElementById('std-ticker').value.toUpperCase();
                 const days = document.getElementById('std-days').value;
-                response = await axios.post(`/api/v1/predict/${ticker}`, { days: parseInt(days) });
+                const modelPath = document.getElementById('std-model').value;
+                
+                // Build request payload
+                const payload = { days: parseInt(days) };
+                if (modelPath) {
+                    payload.model_path = modelPath;
+                }
+                
+                response = await axios.post(`/api/v1/predict/${ticker}`, payload);
             } else {
                 ticker = document.getElementById('custom-ticker').value.toUpperCase();
                 const days = document.getElementById('custom-days').value;
