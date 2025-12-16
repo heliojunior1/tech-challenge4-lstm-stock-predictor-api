@@ -47,6 +47,45 @@ app.add_middleware(
 )
 
 
+# ============== Middleware para Monitoramento In-App ==============
+from starlette.requests import Request
+from app.routers.monitoring import save_metric
+
+
+@app.middleware("http")
+async def log_requests_middleware(request: Request, call_next):
+    """
+    Middleware para capturar todas as requests e salvar métricas no SQLite.
+    Complementa Prometheus para ambientes sem acesso externo.
+    """
+    start_time = time.time()
+    
+    try:
+        response = await call_next(request)
+        duration_ms = (time.time() - start_time) * 1000
+        
+        # Ignorar rotas estáticas e de métricas para evitar poluição
+        path = request.url.path
+        if not path.startswith(("/static", "/metrics", "/monitoring")):
+            save_metric(
+                metric_type="request",
+                endpoint=path,
+                status="success" if response.status_code < 400 else "error",
+                duration_ms=duration_ms
+            )
+        
+        return response
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        save_metric(
+            metric_type="request",
+            endpoint=request.url.path,
+            status="error",
+            duration_ms=duration_ms
+        )
+        raise
+
+
 # Incluir routers
 app.include_router(training.router, prefix="/api/v1", tags=["Treinamento"])
 app.include_router(inference.router, prefix="/api/v1", tags=["Inferencia"])

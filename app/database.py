@@ -72,6 +72,26 @@ class TrainedModel(Base):
         return f"<TrainedModel(ticker={self.ticker}, rmse={self.rmse})>"
 
 
+class Metric(Base):
+    """
+    Modelo para armazenar métricas do sistema (monitoramento in-app).
+    Substitui Prometheus/Grafana em ambientes como Render.
+    """
+    __tablename__ = "metrics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    metric_type = Column(String, index=True)  # "request", "prediction", "training", "error"
+    ticker = Column(String, nullable=True)
+    value = Column(Float, nullable=True)       # Latência, preço previsto, etc.
+    status = Column(String, nullable=True)     # "success", "error"
+    endpoint = Column(String, nullable=True)
+    duration_ms = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    def __repr__(self):
+        return f"<Metric(type={self.metric_type}, endpoint={self.endpoint})>"
+
+
 def init_db():
     """Inicializa o banco de dados criando todas as tabelas."""
     Base.metadata.create_all(bind=engine)

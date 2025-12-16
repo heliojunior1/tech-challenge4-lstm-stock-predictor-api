@@ -96,9 +96,12 @@ class PredictService:
         
         # Preparar dados para inferência
         data_service = DataService(self.ticker)
-        X, scaler = data_service.prepare_inference_data()
+        # CRITICAL FIX: Passar o scaler do modelo treinado para evitar data leakage
+        X, _ = data_service.prepare_inference_data(scaler=self.scaler)
         
-        # Usar o scaler do modelo treinado para consistência
+        # O scaler retornado acima (loaded_scaler) deve ser ignorado
+        # pois o prepare_inference_data usa o scaler passado (self.scaler) para transform
+        
         predictions = []
         current_sequence = X.clone()
         

@@ -34,3 +34,9 @@ async def page_predict(request: Request):
 async def page_history(request: Request):
     """Renderiza página de histórico."""
     return templates.TemplateResponse("history.html", {"request": request})
+
+
+@router.get("/monitoring", tags=["Frontend"])
+async def page_monitoring(request: Request):
+    """Renderiza página de monitoramento in-app."""
+    return templates.TemplateResponse("monitoring.html", {"request": request})

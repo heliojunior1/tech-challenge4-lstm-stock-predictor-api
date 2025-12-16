@@ -64,7 +64,7 @@ class DataService:
             if close_session:
                 session.close()
     
-    def scale_data(self, close_prices: np.ndarray) -> Tuple[np.ndarray, MinMaxScaler]:
+    def scale_data(self, close_prices: np.ndarray, scaler: Optional[MinMaxScaler] = None) -> Tuple[np.ndarray, MinMaxScaler]:
         """
         Normaliza os preços de fechamento para o intervalo [0, 1].
         
@@ -72,13 +72,20 @@ class DataService:
         
         Args:
             close_prices: Array de preços de fechamento
+            scaler: Scaler opcional (usar durante inferência para manter consistência)
         
         Returns:
             scaled_data: Dados normalizados
-            scaler: Objeto scaler para inverter a transformação
+            scaler: Objeto scaler usado (o passado ou um novo fitado)
         """
-        scaled_data = self.scaler.fit_transform(close_prices.reshape(-1, 1))
-        return scaled_data, self.scaler
+        if scaler:
+            # Inferência: Usar scaler já treinado (transform apenas)
+            scaled_data = scaler.transform(close_prices.reshape(-1, 1))
+            return scaled_data, scaler
+        else:
+            # Treinamento: Fitar novo scaler (fit_transform)
+            scaled_data = self.scaler.fit_transform(close_prices.reshape(-1, 1))
+            return scaled_data, self.scaler
     
     def create_sequences(self, data: np.ndarray, window_size: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -175,20 +182,23 @@ class DataService:
         
         return X_train, X_test, y_train, y_test, scaler
     
-    def prepare_inference_data(self) -> Tuple[torch.Tensor, MinMaxScaler]:
+    def prepare_inference_data(self, scaler: Optional[MinMaxScaler] = None) -> Tuple[torch.Tensor, MinMaxScaler]:
         """
         Prepara os últimos N dias para fazer uma previsão.
         
+        Args:
+            scaler: Scaler treinado (obrigatório para consistência no predict)
+            
         Returns:
             X: Tensor com os últimos window_size dias
-            scaler: Scaler para inverter a previsão
+            scaler: Scaler utilizado
         """
         # Buscar dados
         df = self.fetch_from_db()
         close_prices = df['close'].values
         
-        # Normalizar
-        scaled_data, scaler = self.scale_data(close_prices)
+        # Normalizar (usando scaler do treino se fornecido)
+        scaled_data, used_scaler = self.scale_data(close_prices, scaler=scaler)
         
         # Pegar últimos window_size dias
         last_sequence = scaled_data[-self.window_size:]

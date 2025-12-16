@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    <i class="fas fa-chart-area me-2"></i>Monitoramento
+                </h2>
+                <p class="text-muted mb-0">Métricas do sistema em tempo real</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0 me-2 small">Auto-refresh:</label>
+                <select class="form-select form-select-sm" id="refresh-interval" style="width: auto;">
+                    <option value="10000">10s</option>
+                    <option value="30000" selected>30s</option>
+                    <option value="60000">60s</option>
+                    <option value="0">Off</option>
+                </select>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadAll()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-exchange-alt fa-2x text-primary mb-2"></i>
+                <h6 class="text-muted">Requests (24h)</h6>
+                <h2 class="mb-0" id="kpi-requests">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                <h6 class="text-muted">Erros (24h)</h6>
+                <h2 class="mb-0" id="kpi-errors">-</h2>
+                <small class="text-muted" id="kpi-error-rate">-</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-magic fa-2x text-success mb-2"></i>
+                <h6 class="text-muted">Previsões (24h)</h6>
+                <h2 class="mb-0" id="kpi-predictions">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-tachometer-alt fa-2x text-info mb-2"></i>
+                <h6 class="text-muted">Latência Média</h6>
+                <h2 class="mb-0" id="kpi-latency">-</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Requests por Hora</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="requests-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Previsões por Ticker</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="predictions-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Events Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Últimos Eventos</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Endpoint</th>
+                        <th>Ticker</th>
+                        <th>Status</th>
+                        <th>Latência</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="events-table">
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let requestsChart = null;
+    let predictionsChart = null;
+    let refreshInterval = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        loadAll();
+        setupAutoRefresh();
+    });
+
+    function initCharts() {
+        // Requests Chart (Line)
+        const requestsCtx = document.getElementById('requests-chart').getContext('2d');
+        requestsChart = new Chart(requestsCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Success',
+                        data: [],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Errors',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Predictions Chart (Bar)
+        const predictionsCtx = document.getElementById('predictions-chart').getContext('2d');
+        predictionsChart = new Chart(predictionsCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Previsões',
+                    data: [],
+                    backgroundColor: '#6366f1'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    async function loadAll() {
+        await Promise.all([
+            loadSummary(),
+            loadRequestsChart(),
+            loadPredictionsChart(),
+            loadEvents()
+        ]);
+    }
+
+    async function loadSummary() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/summary');
+            const data = res.data;
+
+            document.getElementById('kpi-requests').textContent = data.total_requests;
+            document.getElementById('kpi-errors').textContent = data.total_errors;
+            document.getElementById('kpi-error-rate').textContent = `${data.error_rate}% taxa de erro`;
+            document.getElementById('kpi-predictions').textContent = data.total_predictions;
+            document.getElementById('kpi-latency').textContent = `${data.avg_latency_ms}ms`;
+        } catch (e) {
+            console.error('Error loading summary:', e);
+        }
+    }
+
+    async function loadRequestsChart() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/requests');
+            const data = res.data;
+
+            requestsChart.data.labels = data.labels.map(l => l.split(' ')[1] || l);
+            requestsChart.data.datasets[0].data = data.success;
+            requestsChart.data.datasets[1].data = data.errors;
+            requestsChart.update();
+        } catch (e) {
+            console.error('Error loading requests chart:', e);
+        }
+    }
+
+    async function loadPredictionsChart() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/predictions');
+            const data = res.data;
+
+            predictionsChart.data.labels = data.labels;
+            predictionsChart.data.datasets[0].data = data.data;
+            predictionsChart.update();
+        } catch (e) {
+            console.error('Error loading predictions chart:', e);
+        }
+    }
+
+    async function loadEvents() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/events?limit=20');
+            const tbody = document.getElementById('events-table');
+
+            if (res.data.events.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhum evento registrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = res.data.events.map(e => `
+                <tr>
+                    <td><span class="badge bg-${getTypeBadge(e.type)}">${e.type}</span></td>
+                    <td><code class="small">${e.endpoint || '-'}</code></td>
+                    <td>${e.ticker || '-'}</td>
+                    <td>
+                        <span class="badge bg-${e.status === 'success' ? 'success' : 'danger'}">
+                            ${e.status || '-'}
+                        </span>
+                    </td>
+                    <td>${e.duration_ms ? e.duration_ms.toFixed(0) + 'ms' : '-'}</td>
+                    <td class="small text-muted">${formatTime(e.timestamp)}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('Error loading events:', e);
+        }
+    }
+
+    function getTypeBadge(type) {
+        const badges = {
+            'request': 'primary',
+            'prediction': 'success',
+            'training': 'info',
+            'error': 'danger'
+        };
+        return badges[type] || 'secondary';
+    }
+
+    function formatTime(timestamp) {
+        if (!timestamp) return '-';
+        return new Date(timestamp).toLocaleString('pt-BR');
+    }
+
+    function setupAutoRefresh() {
+        const select = document.getElementById('refresh-interval');
+        select.addEventListener('change', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+            const interval = parseInt(select.value);
+            if (interval > 0) {
+                refreshInterval = setInterval(loadAll, interval);
+            }
+        });
+
+        // Start with default 30s
+        refreshInterval = setInterval(loadAll, 30000);
+    }
+</script>
+{% endblock %}
