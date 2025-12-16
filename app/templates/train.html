@@ -5,19 +5,22 @@
     <div class="col-lg-8">
         <div class="card p-4 p-md-5">
             <div class="text-center mb-4">
-                <i class="fas fa-brain fa-3x mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                <i class="fas fa-brain fa-3x mb-3"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
                 <h2 class="mb-2">Treinamento de Modelo</h2>
                 <p class="text-muted">Configure e treine um modelo LSTM para previsão de preços</p>
             </div>
-            
+
             <form id="train-form">
                 <div class="mb-4">
                     <label for="ticker" class="form-label">
                         <i class="fas fa-tag me-1"></i>Ticker da Ação
                     </label>
-                    <input type="text" class="form-control form-control-lg" id="ticker" placeholder="Ex: PETR4.SA, AAPL, DIS" required>
+                    <input type="text" class="form-control form-control-lg" id="ticker"
+                        placeholder="Ex: PETR4.SA, AAPL, DIS" required>
                     <div class="form-text">
-                        <i class="fas fa-info-circle me-1"></i>Certifique-se de ter ingerido dados para este ticker antes.
+                        <i class="fas fa-info-circle me-1"></i>Certifique-se de ter ingerido dados para este ticker
+                        antes.
                     </div>
                 </div>
 
@@ -38,6 +41,45 @@
                     </div>
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label">
+                        <i class="fas fa-cogs me-1"></i>Features para Treinamento
+                    </label>
+                    <div class="p-3 rounded" style="background: rgba(102, 126, 234, 0.05);">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="feat-close" checked disabled>
+                            <label class="form-check-label" for="feat-close">
+                                <strong>Preço de Fechamento</strong> <span class="badge bg-primary">Obrigatório</span>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input feature-checkbox" type="checkbox" id="feat-volume"
+                                value="volume">
+                            <label class="form-check-label" for="feat-volume">
+                                Volume de Negociação <small class="text-muted">(confirma tendências)</small>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input feature-checkbox" type="checkbox" id="feat-rsi"
+                                value="rsi_14">
+                            <label class="form-check-label" for="feat-rsi">
+                                RSI (14 períodos) <small class="text-muted">(detecta reversões)</small>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input feature-checkbox" type="checkbox" id="feat-ema"
+                                value="ema_20">
+                            <label class="form-check-label" for="feat-ema">
+                                EMA (20 períodos) <small class="text-muted">(direção da tendência)</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-text">
+                        <i class="fas fa-info-circle me-1"></i>Mais features podem melhorar as previsões, mas aumentam o
+                        tempo de treinamento.
+                    </div>
+                </div>
+
                 <div class="form-check mb-4 p-3 rounded" style="background: rgba(102, 126, 234, 0.05);">
                     <input class="form-check-input" type="checkbox" id="async_train">
                     <label class="form-check-label" for="async_train">
@@ -47,7 +89,8 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100" id="btn-submit">
-                    <span id="spinner" class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true"></span>
+                    <span id="spinner" class="spinner-border spinner-border-sm d-none me-2" role="status"
+                        aria-hidden="true"></span>
                     <i class="fas fa-play me-2" id="btn-icon"></i>
                     <span id="btn-text">Iniciar Treinamento</span>
                 </button>
@@ -68,6 +111,12 @@
         const batchSize = parseInt(document.getElementById('batch_size').value);
         const asyncTrain = document.getElementById('async_train').checked;
 
+        // Coletar features selecionadas
+        const features = ['close'];  // close é sempre incluído
+        document.querySelectorAll('.feature-checkbox:checked').forEach(cb => {
+            features.push(cb.value);
+        });
+
         const btn = document.getElementById('btn-submit');
         const spinner = document.getElementById('spinner');
         const btnIcon = document.getElementById('btn-icon');
@@ -82,7 +131,7 @@
 
         try {
             const endpoint = asyncTrain ? `/api/v1/train/${ticker}/async` : `/api/v1/train/${ticker}`;
-            const payload = { epochs: epochs, batch_size: batchSize };
+            const payload = { epochs: epochs, batch_size: batchSize, features: features };
 
             const response = await axios.post(endpoint, payload);
 

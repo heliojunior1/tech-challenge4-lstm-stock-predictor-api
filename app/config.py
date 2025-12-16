@@ -45,3 +45,28 @@ TRAINING_CONFIG = {
 # Tickers padrão
 DEFAULT_TICKERS = ["PETR4.SA", "DIS"]
 
+# Features disponíveis para treinamento multivariado
+AVAILABLE_FEATURES = {
+    "close": {
+        "name": "Preço de Fechamento",
+        "required": True,
+        "description": "Preço de fechamento do dia (obrigatório)"
+    },
+    "volume": {
+        "name": "Volume",
+        "required": False,
+        "description": "Volume de negociação (confirma tendências)"
+    },
+    "rsi_14": {
+        "name": "RSI (14)",
+        "required": False,
+        "description": "Índice de Força Relativa - 14 períodos (detecta reversões)"
+    },
+    "ema_20": {
+        "name": "EMA (20)",
+        "required": False,
+        "description": "Média Móvel Exponencial - 20 períodos (direção da tendência)"
+    },
+}
+
+DEFAULT_FEATURES = ["close"]  # Apenas close por padrão (retrocompatível)

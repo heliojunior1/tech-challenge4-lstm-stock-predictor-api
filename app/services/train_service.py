@@ -13,7 +13,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List
 
 from app.models.lstm import StockLSTM, create_model
 from app.services.data_service import DataService
@@ -36,7 +36,8 @@ class TrainService:
         self.ticker = ticker
         self.data_service = DataService(ticker)
         self.model: Optional[StockLSTM] = None
-        self.scaler = None
+        self.scalers = None
+        self.features_used = None
         self.history: Dict = {"train_loss": [], "val_loss": []}
     
     def train(
@@ -44,7 +45,8 @@ class TrainService:
         epochs: int = None,
         batch_size: int = None,
         learning_rate: float = None,
-        train_ratio: float = None
+        train_ratio: float = None,
+        features: List[str] = None
     ) -> Dict:
         """
         Treina o modelo LSTM.
@@ -55,6 +57,8 @@ class TrainService:
             learning_rate: Taxa de aprendizado (default: 0.001)
             train_ratio: Proporção treino/teste (default: 0.8)
         
+            features: Lista de features para usar (default: ["close"])
+        
         Returns:
             Dicionário com métricas e caminho do modelo
         """
@@ -63,22 +67,29 @@ class TrainService:
         batch_size = batch_size or TRAINING_CONFIG["batch_size"]
         learning_rate = learning_rate or TRAINING_CONFIG["learning_rate"]
         train_ratio = train_ratio or TRAINING_CONFIG["train_ratio"]
+        if features is None:
+            features = ["close"]
         
         print(f"\n[START] Iniciando treinamento para {self.ticker}")
         print(f"   Epochs: {epochs} | Batch: {batch_size} | LR: {learning_rate}")
+        print(f"   Features: {features}")
         
-        # 1. Preparar dados
-        X_train, X_test, y_train, y_test, self.scaler = self.data_service.prepare_training_data(
-            train_ratio=train_ratio
+        # 1. Preparar dados (MULTIVARIADO)
+        X_train, X_test, y_train, y_test, self.scalers, self.features_used = self.data_service.prepare_training_data(
+            train_ratio=train_ratio,
+            features=features
         )
+        
+        # Determinar input_size baseado no número de features
+        n_features = X_train.shape[2]
         
         # Criar DataLoaders
         train_dataset = TensorDataset(X_train, y_train)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         
-        # 2. Criar modelo
-        self.model = create_model()
-        print(f"   Modelo: {self.model.hidden_size} unidades, {self.model.num_layers} camadas")
+        # 2. Criar modelo com input_size correto para multi-feature
+        self.model = create_model(input_size=n_features)
+        print(f"   Modelo: {self.model.hidden_size} unidades, {self.model.num_layers} camadas, {n_features} features")
         
         # 3. Configurar treinamento
         criterion = nn.MSELoss()
@@ -144,9 +155,10 @@ class TrainService:
         with torch.no_grad():
             predictions = self.model(X_test)
         
-        # Inverter normalização
-        y_pred = self.scaler.inverse_transform(predictions.numpy())
-        y_true = self.scaler.inverse_transform(y_test.numpy())
+        # Inverter normalização usando scaler do close (target é sempre close)
+        close_scaler = self.scalers["close"]
+        y_pred = close_scaler.inverse_transform(predictions.numpy())
+        y_true = close_scaler.inverse_transform(y_test.numpy())
         
         # Calcular métricas
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
@@ -188,12 +200,24 @@ class TrainService:
         model_filename = f"{self.ticker}_{timestamp}.pt"
         model_path = MODELS_DIR / model_filename
         
-        # Salvar pesos do modelo
+        # Salvar pesos do modelo com scalers e features para multi-feature
+        # Serializar scalers para o checkpoint
+        scalers_data = {}
+        for name, scaler in self.scalers.items():
+            scalers_data[name] = {
+                "data_min": float(scaler.data_min_[0]),
+                "data_max": float(scaler.data_max_[0]),
+                "feature_range": scaler.feature_range
+            }
+        
         torch.save({
             "model_state_dict": self.model.state_dict(),
             "model_config": self.model.get_config(),
-            "scaler_min": float(self.scaler.data_min_[0]),
-            "scaler_max": float(self.scaler.data_max_[0]),
+            "scalers": scalers_data,  # Dict com dados de todos os scalers
+            "features": self.features_used,  # Lista de features usadas
+            # Retrocompatibilidade: manter scaler_min/max do close
+            "scaler_min": scalers_data["close"]["data_min"],
+            "scaler_max": scalers_data["close"]["data_max"],
             "metrics": metrics,
             "ticker": self.ticker,
             "timestamp": timestamp

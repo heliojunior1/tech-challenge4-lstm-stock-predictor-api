@@ -16,6 +16,10 @@ class TrainRequest(BaseModel):
     batch_size: Optional[int] = Field(default=32, ge=8, le=256, description="Tamanho do batch")
     learning_rate: Optional[float] = Field(default=0.001, gt=0, lt=1, description="Taxa de aprendizado")
     train_ratio: Optional[float] = Field(default=0.8, gt=0.5, lt=1, description="Proporcao treino/teste")
+    features: Optional[List[str]] = Field(
+        default=["close"],
+        description="Features para treinamento: close (obrigatorio), volume, rsi_14, ema_20"
+    )
 
 
 class PredictRequest(BaseModel):

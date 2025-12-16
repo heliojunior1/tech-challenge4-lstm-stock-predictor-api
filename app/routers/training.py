@@ -20,7 +20,7 @@ router = APIRouter()
 _training_status = {}
 
 
-def _background_train(ticker: str, epochs: int, batch_size: int, learning_rate: float, train_ratio: float):
+def _background_train(ticker: str, epochs: int, batch_size: int, learning_rate: float, train_ratio: float, features: list):
     """Funcao para executar treinamento em background."""
     global _training_status
     _training_status[ticker] = {"status": "training", "progress": 0}
@@ -31,7 +31,8 @@ def _background_train(ticker: str, epochs: int, batch_size: int, learning_rate: 
             epochs=epochs,
             batch_size=batch_size,
             learning_rate=learning_rate,
-            train_ratio=train_ratio
+            train_ratio=train_ratio,
+            features=features
         )
         duration = time.time() - start_time
         record_training(ticker, "success", duration)
@@ -54,6 +55,7 @@ async def train_endpoint(
     - **batch_size**: Tamanho do batch (default: 32)
     - **learning_rate**: Taxa de aprendizado (default: 0.001)
     - **train_ratio**: Proporcao treino/teste (default: 0.8)
+    - **features**: Lista de features (default: ["close"]). Opcoes: close, volume, rsi_14, ema_20
     """
     start_time = time.time()
     try:
@@ -62,7 +64,8 @@ async def train_endpoint(
             epochs=request.epochs,
             batch_size=request.batch_size,
             learning_rate=request.learning_rate,
-            train_ratio=request.train_ratio
+            train_ratio=request.train_ratio,
+            features=request.features
         )
         
         # Registrar metrica Prometheus
@@ -97,7 +100,8 @@ async def train_async_endpoint(
         request.epochs,
         request.batch_size,
         request.learning_rate,
-        request.train_ratio
+        request.train_ratio,
+        request.features
     )
     
     _training_status[ticker] = {"status": "started"}

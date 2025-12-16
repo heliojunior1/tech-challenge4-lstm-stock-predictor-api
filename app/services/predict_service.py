@@ -30,7 +30,8 @@ class PredictService:
         """
         self.ticker = ticker
         self.model: Optional[StockLSTM] = None
-        self.scaler: Optional[MinMaxScaler] = None
+        self.scalers: Optional[Dict[str, MinMaxScaler]] = None  # Multi-feature
+        self.features: Optional[List[str]] = None  # Lista de features usadas
         self.model_path: Optional[Path] = None
     
     def load_model(self, model_path: str = None) -> bool:
@@ -71,19 +72,35 @@ class PredictService:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         
-        # Recriar scaler
-        self.scaler = MinMaxScaler(feature_range=(0, 1))
-        self.scaler.data_min_ = np.array([checkpoint["scaler_min"]])
-        self.scaler.data_max_ = np.array([checkpoint["scaler_max"]])
-        self.scaler.scale_ = 1 / (self.scaler.data_max_ - self.scaler.data_min_)
-        self.scaler.min_ = -self.scaler.data_min_ * self.scaler.scale_
+        # Carregar features usadas no treino
+        self.features = checkpoint.get("features", ["close"])
         
-        print(f"[OK] Modelo carregado: {self.model_path.name}")
+        # Recriar scalers (multi-feature ou retrocompatível)
+        if "scalers" in checkpoint:
+            # Novo formato: dict de scalers
+            self.scalers = {}
+            for name, data in checkpoint["scalers"].items():
+                scaler = MinMaxScaler(feature_range=data.get("feature_range", (0, 1)))
+                scaler.data_min_ = np.array([data["data_min"]])
+                scaler.data_max_ = np.array([data["data_max"]])
+                scaler.scale_ = 1 / (scaler.data_max_ - scaler.data_min_)
+                scaler.min_ = -scaler.data_min_ * scaler.scale_
+                self.scalers[name] = scaler
+        else:
+            # Formato antigo: apenas close
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            scaler.data_min_ = np.array([checkpoint["scaler_min"]])
+            scaler.data_max_ = np.array([checkpoint["scaler_max"]])
+            scaler.scale_ = 1 / (scaler.data_max_ - scaler.data_min_)
+            scaler.min_ = -scaler.data_min_ * scaler.scale_
+            self.scalers = {"close": scaler}
+        
+        print(f"[OK] Modelo carregado: {self.model_path.name} (features: {self.features})")
         return True
     
     def predict(self, days: int = 1) -> Dict:
         """
-        Faz previsão do preço para os próximos dias.
+        Faz previsão do preço para os próximos dias (multi-feature).
         
         Args:
             days: Número de dias para prever (default: 1)
@@ -94,13 +111,16 @@ class PredictService:
         if self.model is None:
             self.load_model()
         
-        # Preparar dados para inferência
+        # Preparar dados para inferência (multi-feature)
         data_service = DataService(self.ticker)
-        # CRITICAL FIX: Passar o scaler do modelo treinado para evitar data leakage
-        X, _ = data_service.prepare_inference_data(scaler=self.scaler)
+        X = data_service.prepare_inference_data(
+            scalers=self.scalers,
+            features=self.features
+        )
         
-        # O scaler retornado acima (loaded_scaler) deve ser ignorado
-        # pois o prepare_inference_data usa o scaler passado (self.scaler) para transform
+        # Scaler do close para inverter previsões
+        close_scaler = self.scalers["close"]
+        n_features = len(self.features)
         
         predictions = []
         current_sequence = X.clone()
@@ -110,8 +130,8 @@ class PredictService:
             with torch.no_grad():
                 pred_scaled = self.model(current_sequence)
             
-            # Inverter escala
-            pred_value = self.scaler.inverse_transform(pred_scaled.numpy())[0, 0]
+            # Inverter escala usando scaler do close
+            pred_value = close_scaler.inverse_transform(pred_scaled.numpy())[0, 0]
             predictions.append({
                 "day": day + 1,
                 "predicted_price": float(pred_value)
@@ -119,8 +139,12 @@ class PredictService:
             
             # Atualizar sequência para próxima previsão (rolling window)
             if days > 1:
-                new_value = pred_scaled.view(1, 1, 1)
-                current_sequence = torch.cat([current_sequence[:, 1:, :], new_value], dim=1)
+                # Para multi-feature, precisamos criar um novo timestep com todas as features
+                # Por simplificação, replicamos o valor previsto apenas para close
+                # (outras features seriam aproximações - limitação conhecida)
+                new_values = current_sequence[:, -1:, :].clone()  # Copiar último timestep
+                new_values[:, 0, 0] = pred_scaled[0, 0]  # Atualizar close
+                current_sequence = torch.cat([current_sequence[:, 1:, :], new_values], dim=1)
         
         # Salvar previsão no banco
         self._save_prediction(predictions)
@@ -128,6 +152,7 @@ class PredictService:
         return {
             "ticker": self.ticker,
             "model": self.model_path.name if self.model_path else "unknown",
+            "features": self.features,
             "predictions": predictions
         }
     
