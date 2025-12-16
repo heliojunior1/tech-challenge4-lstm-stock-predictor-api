@@ -190,9 +190,65 @@ curl -X POST "http://localhost:8000/api/v1/predict/custom" \
 
 ### Arquitetura
 
-- **Input**: Janela de 60 dias (preço de fechamento)
-- **LSTM**: 50 unidades, 2 camadas, dropout 0.2
-- **Output**: 1 valor (preço previsto)
+```
+Input (batch, 60, n_features)
+         ▼
+┌────────────────────────────┐
+│  nn.LSTM                   │
+│  • hidden_size: 50         │
+│  • num_layers: 2           │
+│  • dropout: 0.2            │
+│  • bias: True              │
+└────────────────────────────┘
+         ▼
+    Último timestep
+         ▼
+┌────────────────────────────┐
+│  nn.Dropout(0.2)           │
+└────────────────────────────┘
+         ▼
+┌────────────────────────────┐
+│  nn.Linear(50, 1)          │
+│  • bias: True              │
+│  • ativação: Nenhuma       │
+└────────────────────────────┘
+         ▼
+Output (batch, 1) → preço previsto
+```
+
+### Funções de Ativação (Internas da LSTM)
+
+A LSTM usa **4 gates** com ativações específicas (implementação PyTorch):
+
+| Gate | Ativação | Fórmula | Propósito |
+|------|----------|---------|-----------|
+| **Forget Gate** | Sigmoid | `σ(Wf·[ht-1, xt] + bf)` | Decide o que esquecer |
+| **Input Gate** | Sigmoid | `σ(Wi·[ht-1, xt] + bi)` | Decide o que atualizar |
+| **Candidate** | Tanh | `tanh(Wc·[ht-1, xt] + bc)` | Cria novos candidatos |
+| **Output Gate** | Sigmoid | `σ(Wo·[ht-1, xt] + bo)` | Decide a saída |
+
+- **Sigmoid (0-1)**: Atua como "porta" - 0 = bloqueia, 1 = permite
+- **Tanh (-1 a 1)**: Permite ajustes bidirecionais
+
+### Parâmetros do Modelo
+
+| Parâmetro | Valor | Descrição |
+|-----------|-------|-----------|
+| `input_size` | 1-4 | Features por timestep (close, volume, rsi, ema) |
+| `hidden_size` | 50 | Neurônios LSTM por camada |
+| `num_layers` | 2 | Camadas empilhadas |
+| `dropout` | 0.2 | 20% regularização |
+| `output_size` | 1 | Preço previsto |
+| `window_size` | 60 | Dias de input |
+| `bias` | True | Offset aprendível em cada gate |
+
+### Loss e Otimizador
+
+| Componente | Implementação | Motivo |
+|------------|---------------|--------|
+| **Loss** | `MSELoss` | Regressão - penaliza erros quadráticos |
+| **Otimizador** | `Adam` | Converge rápido, adapta LR por parâmetro |
+| **Learning Rate** | 0.001 | Padrão conservador |
 
 ### Pré-processamento
 
