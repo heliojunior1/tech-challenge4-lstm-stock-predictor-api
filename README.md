@@ -200,10 +200,29 @@ curl -X POST "http://localhost:8000/api/v1/predict/custom" \
 2. **Windowing**: Janela deslizante de 60 dias
 3. **Split**: 80% treino, 20% teste (temporal)
 
+#### ⚠️ Prevenção de Data Leakage
+
+O pipeline de dados foi cuidadosamente projetado para **evitar data leakage** na normalização:
+
+```
+❌ Errado: Normalizar → Dividir (scaler "vê" dados de teste)
+✅ Correto: Dividir → Normalizar treino → Aplicar no teste
+```
+
+**Implementação em `data_service.py`:**
+
+1. **Split primeiro**: Dados brutos são divididos em 80/20 **antes** de qualquer processamento
+2. **Fit apenas no treino**: `scaler.fit()` é chamado **apenas** nos dados de treino
+3. **Transform no teste**: Dados de teste usam `scaler.transform()` (não refit)
+4. **Contexto preservado**: Últimos 60 dias do treino são usados como contexto inicial para sequências de teste
+
+Isso garante que o modelo nunca tenha acesso a informações do futuro durante o treinamento.
+
 ### Métricas de Avaliação
 
 - **RMSE**: Root Mean Squared Error (em R$)
 - **MAE**: Mean Absolute Error (em R$)
+- **MAPE**: Mean Absolute Percentage Error (%)
 
 ## 🐳 Docker
 

@@ -153,10 +153,12 @@ class DataService:
         """
         Pipeline completo de preparação de dados para treinamento.
         
+        ORDEM CORRETA (evita data leakage):
         1. Busca dados do banco
-        2. Aplica MinMaxScaler
-        3. Cria sequências (windowing)
-        4. Divide em treino/teste (temporal)
+        2. PRIMEIRO divide em treino/teste (temporal)
+        3. Fita MinMaxScaler APENAS nos dados de treino
+        4. Aplica transform nos dados de teste
+        5. Cria sequências (windowing) separadamente
         
         Returns:
             X_train, X_test, y_train, y_test, scaler
@@ -167,20 +169,45 @@ class DataService:
         
         print(f"[DATA] {self.ticker}: {len(close_prices)} registros")
         
-        # 2. Normalizar (MinMaxScaler)
-        scaled_data, scaler = self.scale_data(close_prices)
+        # 2. PRIMEIRO: Split temporal nos dados BRUTOS
+        split_idx = int(len(close_prices) * train_ratio)
+        train_prices = close_prices[:split_idx]
+        test_prices = close_prices[split_idx:]
         
-        # 3. Criar sequências (windowing)
-        X, y = self.create_sequences(scaled_data)
+        print(f"   -> Split: Treino={len(train_prices)} | Teste={len(test_prices)}")
         
-        print(f"   -> {len(X)} sequencias criadas (janela: {self.window_size} dias)")
+        # 3. Fitar scaler APENAS nos dados de treino (evita data leakage!)
+        self.scaler.fit(train_prices.reshape(-1, 1))
         
-        # 4. Split temporal
-        X_train, X_test, y_train, y_test = self.train_test_split_temporal(X, y, train_ratio)
+        # 4. Transformar ambos os conjuntos usando o scaler do treino
+        train_scaled = self.scaler.transform(train_prices.reshape(-1, 1))
+        test_scaled = self.scaler.transform(test_prices.reshape(-1, 1))
         
-        print(f"   -> Treino: {len(X_train)} | Teste: {len(X_test)}")
+        # 5. Criar sequências separadamente
+        X_train, y_train = self.create_sequences(train_scaled)
         
-        return X_train, X_test, y_train, y_test, scaler
+        # Para teste, precisamos incluir os últimos window_size dias do treino
+        # para criar a primeira sequência de teste corretamente
+        test_with_context = np.concatenate([
+            train_scaled[-self.window_size:],  # Contexto do fim do treino
+            test_scaled
+        ])
+        X_test_full, y_test_full = self.create_sequences(test_with_context)
+        
+        # Pegar apenas as sequências que correspondem ao período de teste
+        # (descartamos as primeiras que usam dados de treino como target)
+        X_test = X_test_full
+        y_test = y_test_full
+        
+        print(f"   -> Sequências: Treino={len(X_train)} | Teste={len(X_test)} (janela: {self.window_size})")
+        
+        # Converter para tensores PyTorch
+        X_train = torch.tensor(X_train, dtype=torch.float32)
+        X_test = torch.tensor(X_test, dtype=torch.float32)
+        y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
+        y_test = torch.tensor(y_test, dtype=torch.float32).unsqueeze(1)
+        
+        return X_train, X_test, y_train, y_test, self.scaler
     
     def prepare_inference_data(self, scaler: Optional[MinMaxScaler] = None) -> Tuple[torch.Tensor, MinMaxScaler]:
         """
