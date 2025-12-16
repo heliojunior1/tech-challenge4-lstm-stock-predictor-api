@@ -250,6 +250,48 @@ A LSTM usa **4 gates** com ativações específicas (implementação PyTorch):
 | **Otimizador** | `Adam` | Converge rápido, adapta LR por parâmetro |
 | **Learning Rate** | 0.001 | Padrão conservador |
 
+### Fluxo de Treinamento (Forward + Backpropagation)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    1. FORWARD PASS                              │
+├─────────────────────────────────────────────────────────────────┤
+│   Input X (batch, 60, n_features)                               │
+│        │                                                        │
+│        ▼                                                        │
+│   ┌─────────┐    ┌─────────┐    ┌─────────┐                    │
+│   │  LSTM   │ →  │ Dropout │ →  │ Linear  │ →  Previsão ŷ      │
+│   └─────────┘    └─────────┘    └─────────┘                    │
+│                                       │                         │
+│   Valor Real y ──────────────────────►│                         │
+│                                       ▼                         │
+│                                   MSELoss                       │
+│                               Loss = (ŷ - y)²                   │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             │ loss.backward()
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 2. BACKPROPAGATION                              │
+├─────────────────────────────────────────────────────────────────┤
+│   Gradientes calculados de trás para frente (Chain Rule):      │
+│                                                                 │
+│   Loss → ∂Loss/∂w_linear → ∂Loss/∂w_lstm2 → ∂Loss/∂w_lstm1     │
+│                                                                 │
+│   Cada peso sabe "quanto contribuiu" para o erro               │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             │ optimizer.step()
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               3. ATUALIZAÇÃO DE PESOS                           │
+├─────────────────────────────────────────────────────────────────┤
+│   w_novo = w_antigo - learning_rate × gradiente                 │
+│                                                                 │
+│   Adam: ajusta LR adaptativamente por parâmetro                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### Pré-processamento
 
 1. **Scaling**: MinMaxScaler (normalização 0-1)
