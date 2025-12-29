@@ -572,3 +572,24 @@ MIT License
 ## 👨‍💻 Autor
 
 **Tech Challenge Fase 4** - Pós-Tech FIAP Machine Learning Engineering
+
+---
+
+## 🔬 Otimizações do Modelo (Data Science)
+
+Para garantir a melhor performance e evitar problemas comuns em séries temporais (como overfitting e instabilidade), o projeto implementa as seguintes técnicas:
+
+### 1. Parada Antecipada (Early Stopping)
+O modelo monitora o erro nos dados de validação. Se o erro parar de cair por **15 épocas** consecutivas, o treinamento é interrompido. Isso evita que o modelo "decore" o passado (overfitting) e economiza recursos computacionais.
+
+### 2. Agendador de Taxa de Aprendizado (LR Scheduler)
+Utilizamos o `ReduceLROnPlateau`. Se o modelo atingir um platô (estacionar), o agendador reduz a taxa de aprendizado pela metade. Isso permite que o modelo faça ajustes mais finos conforme se aproxima do ponto ideal.
+
+### 3. Corte de Gradiente (Gradient Clipping)
+Em LSTMs, os gradientes podem explodir em sequências longas. O projeto limita a norma dos gradientes em **1.0**, garantindo que as atualizações dos pesos sejam sempre estáveis.
+
+### 4. Monitoramento Automático de Métricas
+Toda execução de treinamento calcula e armazena:
+- **RMSE** (Root Mean Squared Error)
+- **MAE** (Mean Absolute Error)
+- **MAPE** (Mean Absolute Percentage Error) - *Ideal para comparar erros entre diferentes preços de ações.*
