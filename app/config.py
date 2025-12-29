@@ -40,6 +40,15 @@ TRAINING_CONFIG = {
     "batch_size": 32,
     "learning_rate": 0.001,
     "train_ratio": 0.8,
+    # Early Stopping
+    "early_stopping_patience": 15,  # Para após 15 epochs sem melhora
+    "early_stopping_min_delta": 0.0001,  # Mínima melhora para considerar progresso
+    # LR Scheduler
+    "lr_scheduler_factor": 0.5,  # Reduz LR pela metade
+    "lr_scheduler_patience": 5,  # Espera 5 epochs antes de reduzir
+    "lr_min": 1e-6,  # LR mínimo
+    # Gradient Clipping
+    "gradient_clip_max_norm": 1.0,
 }
 
 # Tickers padrão

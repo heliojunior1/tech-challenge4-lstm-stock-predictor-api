@@ -5,20 +5,91 @@ Inclui:
 - Loop de treinamento com MSELoss
 - Cálculo de métricas (RMSE, MAE)
 - Salvamento do modelo treinado
+- Early Stopping para evitar overfitting
+- Learning Rate Scheduler para otimização adaptativa
 """
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Tuple, Optional, List
+import copy
 
 from app.models.lstm import StockLSTM, create_model
 from app.services.data_service import DataService
 from app.database import SessionLocal, TrainedModel
 from app.config import TRAINING_CONFIG, MODELS_DIR
+
+
+class EarlyStopping:
+    """
+    Early Stopping para evitar overfitting.
+    
+    Para o treinamento quando val_loss não melhora por 'patience' epochs consecutivos.
+    Salva o melhor modelo encontrado durante o treinamento.
+    """
+    
+    def __init__(self, patience: int = 10, min_delta: float = 0.0001, verbose: bool = True):
+        """
+        Args:
+            patience: Número de epochs sem melhora antes de parar
+            min_delta: Mínima melhora para considerar como progresso
+            verbose: Se True, imprime mensagens de status
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.verbose = verbose
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+        self.best_model_state = None
+    
+    def __call__(self, val_loss: float, model: nn.Module) -> bool:
+        """
+        Verifica se deve parar o treinamento.
+        
+        Args:
+            val_loss: Loss de validação atual
+            model: Modelo atual
+            
+        Returns:
+            True se deve parar, False caso contrário
+        """
+        if self.best_loss is None:
+            # Primeira época
+            self.best_loss = val_loss
+            self.best_model_state = copy.deepcopy(model.state_dict())
+            return False
+        
+        if val_loss < self.best_loss - self.min_delta:
+            # Melhorou! Resetar contador e salvar modelo
+            self.best_loss = val_loss
+            self.best_model_state = copy.deepcopy(model.state_dict())
+            self.counter = 0
+            if self.verbose:
+                print(f"   ✓ Novo melhor modelo! Val Loss: {val_loss:.6f}")
+            return False
+        else:
+            # Não melhorou
+            self.counter += 1
+            if self.verbose and self.counter % 5 == 0:
+                print(f"   ⚠ Sem melhora há {self.counter} epochs (patience: {self.patience})")
+            
+            if self.counter >= self.patience:
+                self.early_stop = True
+                if self.verbose:
+                    print(f"   🛑 Early Stopping ativado! Melhor val_loss: {self.best_loss:.6f}")
+                return True
+            return False
+    
+    def restore_best_model(self, model: nn.Module):
+        """Restaura os pesos do melhor modelo encontrado."""
+        if self.best_model_state is not None:
+            model.load_state_dict(self.best_model_state)
 
 
 class TrainService:
@@ -95,8 +166,26 @@ class TrainService:
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         
-        # 4. Loop de treinamento
-        print("\n[TRAINING] Treinando...")
+        # 3.1 Configurar Learning Rate Scheduler
+        scheduler = ReduceLROnPlateau(
+            optimizer, 
+            mode='min',           # Minimizar val_loss
+            factor=0.5,           # Reduz LR pela metade
+            patience=5,           # Espera 5 epochs sem melhora
+            min_lr=1e-6           # LR mínimo
+        )
+        
+        # 3.2 Configurar Early Stopping
+        early_stopping = EarlyStopping(
+            patience=TRAINING_CONFIG.get("early_stopping_patience", 15),
+            min_delta=0.0001,
+            verbose=True
+        )
+        
+        # 4. Loop de treinamento com Early Stopping e LR Scheduler
+        print("\n[TRAINING] Treinando com Early Stopping e LR Scheduler...")
+        final_epoch = epochs
+        
         for epoch in range(epochs):
             self.model.train()
             epoch_loss = 0.0
@@ -106,6 +195,10 @@ class TrainService:
                 predictions = self.model(X_batch)
                 loss = criterion(predictions, y_batch)
                 loss.backward()
+                
+                # Gradient Clipping para evitar gradientes explosivos
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                
                 optimizer.step()
                 epoch_loss += loss.item()
             
@@ -119,9 +212,28 @@ class TrainService:
                 val_loss = criterion(val_pred, y_test).item()
                 self.history["val_loss"].append(val_loss)
             
-            # Log a cada 10 epochs
+            # Atualizar LR Scheduler baseado no val_loss
+            old_lr = optimizer.param_groups[0]['lr']
+            scheduler.step(val_loss)
+            new_lr = optimizer.param_groups[0]['lr']
+            
+            # Log a cada 10 epochs ou quando LR muda
             if (epoch + 1) % 10 == 0 or epoch == 0:
-                print(f"   Epoch {epoch+1:3d}/{epochs} | Train Loss: {avg_train_loss:.6f} | Val Loss: {val_loss:.6f}")
+                lr_info = f" | LR: {new_lr:.2e}" if new_lr != old_lr else ""
+                print(f"   Epoch {epoch+1:3d}/{epochs} | Train: {avg_train_loss:.6f} | Val: {val_loss:.6f}{lr_info}")
+            elif new_lr < old_lr:
+                print(f"   📉 LR reduzido: {old_lr:.2e} -> {new_lr:.2e}")
+            
+            # Verificar Early Stopping
+            if early_stopping(val_loss, self.model):
+                final_epoch = epoch + 1
+                print(f"\n   ⏹️ Treinamento parado na epoch {final_epoch} de {epochs}")
+                break
+        
+        # 4.1 Restaurar melhor modelo encontrado
+        if early_stopping.best_model_state is not None:
+            early_stopping.restore_best_model(self.model)
+            print(f"   ✅ Restaurado melhor modelo (val_loss: {early_stopping.best_loss:.6f})")
         
         # 5. Avaliar modelo
         metrics = self.evaluate(X_test, y_test)
@@ -131,7 +243,10 @@ class TrainService:
         
         return {
             "ticker": self.ticker,
-            "epochs": epochs,
+            "epochs_configured": epochs,
+            "epochs_trained": len(self.history["train_loss"]),
+            "early_stopped": early_stopping.early_stop,
+            "best_val_loss": early_stopping.best_loss,
             "final_train_loss": self.history["train_loss"][-1],
             "final_val_loss": self.history["val_loss"][-1],
             "rmse": metrics["rmse"],
