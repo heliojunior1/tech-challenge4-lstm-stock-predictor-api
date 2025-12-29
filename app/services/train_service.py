@@ -243,6 +243,7 @@ class TrainService:
         
         return {
             "ticker": self.ticker,
+            "epochs": len(self.history["train_loss"]),  # Campo obrigatório para TrainResponse
             "epochs_configured": epochs,
             "epochs_trained": len(self.history["train_loss"]),
             "early_stopped": early_stopping.early_stop,

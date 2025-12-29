@@ -132,6 +132,12 @@ def ingest_data(ticker: str, start_date: str = None, end_date: str = None) -> in
     df = pd.DataFrame()
     try:
         df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        
+        # Tratar multi-level columns (problema em versões recentes do yfinance)
+        if not df.empty and isinstance(df.columns, pd.MultiIndex):
+            # Achatar colunas: ('Close', 'AAPL') -> 'Close'
+            df.columns = df.columns.get_level_values(0)
+            
     except Exception as e:
         print(f"   [ERRO] Yahoo Finance falhou: {e}")
     

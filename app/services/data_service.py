@@ -270,6 +270,17 @@ class DataService:
         X_test, y_test = self.create_sequences(test_with_context)
         
         print(f"   -> Sequências: Treino={len(X_train)} | Teste={len(X_test)} (janela: {self.window_size})")
+        
+        # Validação: verificar se há amostras suficientes
+        if len(X_train) == 0:
+            min_required = self.window_size + 10  # Janela + margem mínima
+            actual = len(train_df)
+            raise ValueError(
+                f"Dados insuficientes para treino! "
+                f"Necessário: pelo menos {min_required} registros de treino, encontrado: {actual}. "
+                f"Ingira mais dados históricos para {self.ticker}."
+            )
+        
         print(f"   -> Shape X: {X_train.shape} (samples, window, features)")
         
         # Converter para tensores PyTorch
