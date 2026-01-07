@@ -15,7 +15,7 @@ from app.models.schemas import (
     CustomPredictResponse
 )
 from app.services.predict_service import PredictService, predict_price, predict_from_history
-from app.routers.monitoring import record_prediction
+from app.routers.monitoring import record_prediction, save_metric
 
 router = APIRouter()
 
@@ -69,6 +69,12 @@ async def predict_custom_endpoint(request: CustomPredictRequest):
         # Registrar metrica Prometheus
         for pred in result["predictions"]:
             record_prediction(request.model_ticker, pred["predicted_price"])
+            # Registrar no SQLite para monitoramento in-app
+            save_metric(
+                metric_type="prediction",
+                ticker=request.model_ticker,
+                value=pred["predicted_price"]
+            )
         
         return CustomPredictResponse(
             predictions=result["predictions"],
@@ -108,6 +114,12 @@ async def predict_endpoint(
         # Registrar metrica Prometheus para cada previsao
         for pred in result["predictions"]:
             record_prediction(ticker, pred["predicted_price"])
+            # Registrar no SQLite para monitoramento in-app
+            save_metric(
+                metric_type="prediction",
+                ticker=ticker,
+                value=pred["predicted_price"]
+            )
         
         return PredictResponse(
             ticker=result["ticker"],

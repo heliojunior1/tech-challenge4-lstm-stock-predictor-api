@@ -89,7 +89,8 @@ async def log_requests_middleware(request: Request, call_next):
 # Incluir routers
 app.include_router(training.router, prefix="/api/v1", tags=["Treinamento"])
 app.include_router(inference.router, prefix="/api/v1", tags=["Inferencia"])
-app.include_router(monitoring.router, prefix="/api/v1", tags=["Monitoramento"])
+app.include_router(monitoring.router, tags=["Monitoramento"])  # /metrics na raiz
+app.include_router(monitoring.router, prefix="/api/v1", tags=["Monitoramento"])  # /api/v1/monitoring/* para frontend
 app.include_router(frontend.router, tags=["Frontend"])
 
 # Mount Static Files

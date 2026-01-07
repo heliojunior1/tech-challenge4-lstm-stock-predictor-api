@@ -68,3 +68,5 @@ Thumbs.db
 # Prometheus data (local)
 prometheus_data/
 grafana_data/
+
+APRESENTACAO.md
