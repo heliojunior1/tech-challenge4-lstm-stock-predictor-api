@@ -86,9 +86,16 @@ stock-predictor-api/
 
 ```powershell
 # Windows com Anaconda
-& C:\Users\junio\anaconda3\shell\condabin\conda-hook.ps1
-conda activate base
-cd c:\Users\junio\tech-challenge4-lstm-stock-predictor-api
+
+
+# Criar ambiente virtual
+python -m venv venv
+
+# Ativar ambiente virtual (PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# OU ativar ambiente virtual (CMD)
+venv\Scripts\activate.bat
 ```
 
 ### 2. Instalar Dependências
