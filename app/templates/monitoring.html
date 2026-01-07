@@ -91,7 +91,7 @@
     <div class="col-md-6">
         <div class="card h-100 border-info">
             <div class="card-body">
-                <h6 class="text-muted mb-3"><i class="fas fa-brain me-2"></i>Melhor Modelo</h6>
+                <h6 class="text-muted mb-3"><i class="fas fa-brain me-2"></i>Último Modelo Treinado</h6>
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="text-center flex-fill">
                         <small class="text-muted d-block">Ticker</small>
@@ -298,16 +298,17 @@
             const res = await axios.get('/api/v1/monitoring/model-metrics');
             const data = res.data;
 
-            // Atualizar card de melhor modelo (menor MAPE)
+            // Atualizar card do modelo mais recente (ordenado por data)
             if (data.models && data.models.length > 0) {
-                const bestModel = data.models.reduce((prev, curr) =>
-                    (curr.mape && (!prev.mape || curr.mape < prev.mape)) ? curr : prev
-                );
+                // Ordenar por data de criação (mais recente primeiro) e pegar o primeiro
+                const latestModel = data.models.sort((a, b) =>
+                    new Date(b.created_at) - new Date(a.created_at)
+                )[0];
 
-                document.getElementById('model-ticker').textContent = bestModel.ticker || '-';
-                document.getElementById('model-rmse').textContent = bestModel.rmse ? `R$ ${bestModel.rmse.toFixed(2)}` : '-';
-                document.getElementById('model-mae').textContent = bestModel.mae ? `R$ ${bestModel.mae.toFixed(2)}` : '-';
-                document.getElementById('model-mape').textContent = bestModel.mape ? `${bestModel.mape.toFixed(2)}%` : '-';
+                document.getElementById('model-ticker').textContent = latestModel.ticker || '-';
+                document.getElementById('model-rmse').textContent = latestModel.rmse ? `R$ ${latestModel.rmse.toFixed(2)}` : '-';
+                document.getElementById('model-mae').textContent = latestModel.mae ? `R$ ${latestModel.mae.toFixed(2)}` : '-';
+                document.getElementById('model-mape').textContent = latestModel.mape ? `${latestModel.mape.toFixed(2)}%` : '-';
             }
 
             // Atualizar tabela de modelos
