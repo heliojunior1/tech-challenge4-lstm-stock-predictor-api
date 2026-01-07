@@ -2,6 +2,10 @@
 
 API de previsão de preços de ações usando redes neurais LSTM, desenvolvida para o **Tech Challenge Fase 4** da Pós-Tech FIAP.
 
+# 📈 Acesso em produção
+
+https://stock-predictor-api-x2o4.onrender.com
+
 ## 🎯 Objetivo
 
 Desenvolver uma API que utiliza modelos LSTM para prever preços de ações da bolsa de valores, com monitoramento via Prometheus e deploy na nuvem.
