@@ -26,7 +26,7 @@
     </div>
 </div>
 
-<!-- KPI Cards -->
+<!-- KPI Cards - Sistema -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card h-100">
@@ -67,6 +67,54 @@
     </div>
 </div>
 
+<!-- KPI Cards - Recursos do Sistema -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-microchip fa-2x text-warning mb-2"></i>
+                <h6 class="text-muted">CPU</h6>
+                <h2 class="mb-0" id="kpi-cpu">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-memory fa-2x text-warning mb-2"></i>
+                <h6 class="text-muted">Memória</h6>
+                <h2 class="mb-0" id="kpi-memory">-</h2>
+                <small class="text-muted" id="kpi-memory-percent">-</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 border-info">
+            <div class="card-body">
+                <h6 class="text-muted mb-3"><i class="fas fa-brain me-2"></i>Melhor Modelo</h6>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-center flex-fill">
+                        <small class="text-muted d-block">Ticker</small>
+                        <strong id="model-ticker">-</strong>
+                    </div>
+                    <div class="text-center flex-fill">
+                        <small class="text-muted d-block">RMSE</small>
+                        <strong id="model-rmse">-</strong>
+                    </div>
+                    <div class="text-center flex-fill">
+                        <small class="text-muted d-block">MAE</small>
+                        <strong id="model-mae">-</strong>
+                    </div>
+                    <div class="text-center flex-fill">
+                        <small class="text-muted d-block">MAPE</small>
+                        <strong id="model-mape">-</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Charts Row -->
 <div class="row g-4 mb-4">
     <div class="col-md-8">
@@ -87,6 +135,38 @@
             <div class="card-body">
                 <canvas id="predictions-chart" height="200"></canvas>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Model Metrics Table -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Métricas dos Modelos</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>RMSE (R$)</th>
+                        <th>MAE (R$)</th>
+                        <th>MAPE (%)</th>
+                        <th>Val Loss</th>
+                        <th>Epochs</th>
+                        <th>Treinado em</th>
+                    </tr>
+                </thead>
+                <tbody id="model-metrics-table">
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -192,10 +272,72 @@
     async function loadAll() {
         await Promise.all([
             loadSummary(),
+            loadResources(),
+            loadModelMetrics(),
             loadRequestsChart(),
             loadPredictionsChart(),
             loadEvents()
         ]);
+    }
+
+    async function loadResources() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/resources');
+            const data = res.data;
+
+            document.getElementById('kpi-cpu').textContent = `${data.cpu_percent}%`;
+            document.getElementById('kpi-memory').textContent = `${data.memory_mb} MB`;
+            document.getElementById('kpi-memory-percent').textContent = `${data.memory_percent}% do processo`;
+        } catch (e) {
+            console.error('Error loading resources:', e);
+        }
+    }
+
+    async function loadModelMetrics() {
+        try {
+            const res = await axios.get('/api/v1/monitoring/model-metrics');
+            const data = res.data;
+
+            // Atualizar card de melhor modelo (menor MAPE)
+            if (data.models && data.models.length > 0) {
+                const bestModel = data.models.reduce((prev, curr) =>
+                    (curr.mape && (!prev.mape || curr.mape < prev.mape)) ? curr : prev
+                );
+
+                document.getElementById('model-ticker').textContent = bestModel.ticker || '-';
+                document.getElementById('model-rmse').textContent = bestModel.rmse ? `R$ ${bestModel.rmse.toFixed(2)}` : '-';
+                document.getElementById('model-mae').textContent = bestModel.mae ? `R$ ${bestModel.mae.toFixed(2)}` : '-';
+                document.getElementById('model-mape').textContent = bestModel.mape ? `${bestModel.mape.toFixed(2)}%` : '-';
+            }
+
+            // Atualizar tabela de modelos
+            const tbody = document.getElementById('model-metrics-table');
+            if (data.models.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Nenhum modelo treinado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.models.map(m => `
+                <tr>
+                    <td><strong>${m.ticker}</strong></td>
+                    <td>${m.rmse ? 'R$ ' + m.rmse.toFixed(2) : '-'}</td>
+                    <td>${m.mae ? 'R$ ' + m.mae.toFixed(2) : '-'}</td>
+                    <td><span class="badge ${getMapeClass(m.mape)}">${m.mape ? m.mape.toFixed(2) + '%' : '-'}</span></td>
+                    <td>${m.val_loss ? m.val_loss.toFixed(6) : '-'}</td>
+                    <td>${m.epochs || '-'}</td>
+                    <td class="small text-muted">${formatTime(m.created_at)}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('Error loading model metrics:', e);
+        }
+    }
+
+    function getMapeClass(mape) {
+        if (!mape) return 'bg-secondary';
+        if (mape < 5) return 'bg-success';
+        if (mape < 10) return 'bg-warning';
+        return 'bg-danger';
     }
 
     async function loadSummary() {

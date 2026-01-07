@@ -92,6 +92,23 @@ class Metric(Base):
         return f"<Metric(type={self.metric_type}, endpoint={self.endpoint})>"
 
 
+class SystemMetric(Base):
+    """
+    Métricas de recursos do sistema (CPU, memória).
+    Usado para histórico de uso de recursos no monitoramento in-app.
+    """
+    __tablename__ = "system_metrics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    cpu_percent = Column(Float)           # Uso de CPU (%)
+    memory_mb = Column(Float)             # Memória usada (MB)
+    memory_percent = Column(Float)        # Uso de memória (%)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    def __repr__(self):
+        return f"<SystemMetric(cpu={self.cpu_percent}%, mem={self.memory_mb}MB)>"
+
+
 def init_db():
     """Inicializa o banco de dados criando todas as tabelas."""
     Base.metadata.create_all(bind=engine)

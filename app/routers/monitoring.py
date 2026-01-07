@@ -55,6 +55,47 @@ LAST_PREDICTION_PRICE = Gauge(
     ['ticker']
 )
 
+# Gauges - Métricas do Modelo
+MODEL_RMSE = Gauge(
+    'stock_predictor_model_rmse',
+    'RMSE do modelo (em R$)',
+    ['ticker']
+)
+
+MODEL_MAE = Gauge(
+    'stock_predictor_model_mae',
+    'MAE do modelo (em R$)',
+    ['ticker']
+)
+
+MODEL_MAPE = Gauge(
+    'stock_predictor_model_mape',
+    'MAPE do modelo (%)',
+    ['ticker']
+)
+
+MODEL_VAL_LOSS = Gauge(
+    'stock_predictor_model_val_loss',
+    'Validation loss do modelo',
+    ['ticker']
+)
+
+# Gauges - Recursos do Sistema
+SYSTEM_CPU = Gauge(
+    'stock_predictor_cpu_percent',
+    'Uso de CPU do sistema (%)'
+)
+
+SYSTEM_MEMORY_MB = Gauge(
+    'stock_predictor_memory_mb',
+    'Memoria usada pelo processo (MB)'
+)
+
+SYSTEM_MEMORY_PERCENT = Gauge(
+    'stock_predictor_memory_percent',
+    'Uso de memoria pelo processo (%)'
+)
+
 
 # ============== Funcoes auxiliares para instrumentacao ==============
 
@@ -133,7 +174,8 @@ async def metrics_json():
 # ============== In-App Monitoring (SQLite) ==============
 # Complementa Prometheus para ambientes como Render
 
-from app.database import SessionLocal, Metric
+from app.database import SessionLocal, Metric, SystemMetric, TrainedModel
+from app.services.resource_service import ResourceService
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
@@ -324,3 +366,116 @@ async def monitoring_config():
         "refresh_interval": 30000,  # 30 segundos em ms
         "available_intervals": [10000, 30000, 60000]
     }
+
+
+# ============== Métricas de Recursos do Sistema ==============
+
+@router.get("/monitoring/resources")
+async def monitoring_resources():
+    """
+    Retorna uso atual de CPU e memória.
+    Atualiza também os Gauges do Prometheus.
+    """
+    metrics = ResourceService.get_current()
+    
+    # Atualizar Prometheus Gauges
+    SYSTEM_CPU.set(metrics["cpu_percent"])
+    SYSTEM_MEMORY_MB.set(metrics["memory_mb"])
+    SYSTEM_MEMORY_PERCENT.set(metrics["memory_percent"])
+    
+    return metrics
+
+
+@router.get("/monitoring/resources/history")
+async def monitoring_resources_history(hours: int = 1):
+    """
+    Retorna histórico de uso de recursos para gráfico.
+    
+    Args:
+        hours: Número de horas de histórico (default: 1)
+    """
+    history = ResourceService.get_history(hours=hours)
+    
+    return {
+        "labels": [h["timestamp"] for h in history],
+        "cpu": [h["cpu_percent"] for h in history],
+        "memory_mb": [h["memory_mb"] for h in history],
+        "memory_percent": [h["memory_percent"] for h in history]
+    }
+
+
+@router.post("/monitoring/resources/snapshot")
+async def monitoring_resources_snapshot():
+    """
+    Salva snapshot manual das métricas de recursos no banco.
+    """
+    ResourceService.save_snapshot()
+    return {"status": "ok", "message": "Snapshot salvo com sucesso"}
+
+
+# ============== Métricas do Modelo ==============
+
+@router.get("/monitoring/model-metrics")
+async def monitoring_model_metrics():
+    """
+    Retorna métricas dos modelos treinados (RMSE, MAE, MAPE, loss).
+    Atualiza também os Gauges do Prometheus.
+    """
+    session = SessionLocal()
+    try:
+        # Buscar último modelo de cada ticker
+        from sqlalchemy import desc
+        
+        # Subquery para pegar o ID do modelo mais recente de cada ticker
+        subquery = session.query(
+            TrainedModel.ticker,
+            func.max(TrainedModel.id).label("max_id")
+        ).group_by(TrainedModel.ticker).subquery()
+        
+        # Buscar os modelos mais recentes
+        models = session.query(TrainedModel).join(
+            subquery, TrainedModel.id == subquery.c.max_id
+        ).all()
+        
+        result = []
+        for m in models:
+            model_data = {
+                "ticker": m.ticker,
+                "rmse": round(m.rmse, 4) if m.rmse else None,
+                "mae": round(m.mae, 4) if m.mae else None,
+                "mape": round(m.mape, 2) if m.mape else None,
+                "val_loss": round(m.val_loss, 6) if m.val_loss else None,
+                "train_loss": round(m.train_loss, 6) if m.train_loss else None,
+                "epochs": m.epochs,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            result.append(model_data)
+            
+            # Atualizar Prometheus Gauges
+            if m.rmse:
+                MODEL_RMSE.labels(ticker=m.ticker).set(m.rmse)
+            if m.mae:
+                MODEL_MAE.labels(ticker=m.ticker).set(m.mae)
+            if m.mape:
+                MODEL_MAPE.labels(ticker=m.ticker).set(m.mape)
+            if m.val_loss:
+                MODEL_VAL_LOSS.labels(ticker=m.ticker).set(m.val_loss)
+        
+        return {
+            "models": result,
+            "total": len(result)
+        }
+    finally:
+        session.close()
+
+
+def update_model_metrics(ticker: str, rmse: float, mae: float, mape: float, val_loss: float):
+    """
+    Função auxiliar para atualizar métricas do modelo no Prometheus.
+    Chamada após cada treinamento.
+    """
+    MODEL_RMSE.labels(ticker=ticker).set(rmse)
+    MODEL_MAE.labels(ticker=ticker).set(mae)
+    MODEL_MAPE.labels(ticker=ticker).set(mape)
+    MODEL_VAL_LOSS.labels(ticker=ticker).set(val_loss)
+
