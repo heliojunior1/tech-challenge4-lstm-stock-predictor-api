@@ -103,6 +103,15 @@ class DataService:
         if 'ema_20' in features:
             result['ema_20'] = df['close'].ewm(span=20, adjust=False).mean()
         
+        # ATR - Average True Range (14 períodos) - Volatilidade
+        if 'atr_14' in features:
+            result['atr_14'] = ta.volatility.AverageTrueRange(
+                high=df['high'], 
+                low=df['low'], 
+                close=df['close'], 
+                window=14
+            ).average_true_range()
+        
         # Remover linhas com NaN (primeiros dias para indicadores)
         initial_len = len(result)
         result = result.dropna()

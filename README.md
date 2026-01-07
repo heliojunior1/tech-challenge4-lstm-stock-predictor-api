@@ -245,14 +245,45 @@ A LSTM usa **4 gates** com ativações específicas (implementação PyTorch):
 
 | Parâmetro | Valor | Descrição |
 |-----------|-------|-----------|
-| `input_size` | 1-4 | Features por timestep (adjclose, volume, rsi, ema) |
+| `input_size` | 1-5 | Features por timestep (close, volume, rsi, ema, atr) |
 | `hidden_size` | 50 | Neurônios LSTM por camada |
 | `num_layers` | 2 | Camadas empilhadas |
 | `dropout` | 0.2 | 20% regularização |
 | `output_size` | 1 | Preço previsto |
 | `window_size` | 60 | Dias de input |
 | `bias` | True | Offset aprendível em cada gate |
-Obs: Foi utilizado como padrao o adjclose, visto que é o close normalizado considerando os dividendos. 
+
+> **Obs:** Foi utilizado como padrão o Adjusted Close (preço ajustado por splits e dividendos) via `auto_adjust=True` do yfinance.
+
+### Features Disponíveis para Treinamento
+
+O modelo suporta treinamento multivariado com as seguintes features:
+
+| Feature | Nome | Descrição | Uso |
+|---------|------|-----------|-----|
+| `close` | Preço de Fechamento | Preço ajustado do dia | **Obrigatório** |
+| `volume` | Volume | Volume de negociação | Confirma tendências |
+| `rsi_14` | RSI (14) | Índice de Força Relativa | Detecta reversões (sobrecompra/sobrevenda) |
+| `ema_20` | EMA (20) | Média Móvel Exponencial | Direção da tendência |
+| `atr_14` | ATR (14) | Average True Range | **Mede volatilidade** |
+
+#### ATR (Average True Range) - Indicador de Volatilidade
+
+O **ATR** foi adicionado como feature para capturar a volatilidade do mercado. Desenvolvido por J. Welles Wilder (mesmo criador do RSI), é amplamente utilizado na literatura financeira.
+
+**Cálculo:**
+```
+True Range = max(High-Low, |High-Close_anterior|, |Low-Close_anterior|)
+ATR = Média móvel do True Range (14 períodos)
+```
+
+**Por que usar ATR?**
+- ✅ Captura **gaps** entre dias (abertura ≠ fechamento anterior)
+- ✅ Usa **High, Low, Close** - captura toda a variação intraday
+- ✅ Complementa o RSI (ambos criados por Wilder)
+- ✅ Muito usado em **stop-loss dinâmico** e **position sizing**
+
+**Referência:** Murphy, J. - *Technical Analysis of Financial Markets*
 
 
 ### Loss e Otimizador

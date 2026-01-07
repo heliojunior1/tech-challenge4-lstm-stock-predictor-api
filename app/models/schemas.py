@@ -18,7 +18,7 @@ class TrainRequest(BaseModel):
     train_ratio: Optional[float] = Field(default=0.8, gt=0.5, lt=1, description="Proporcao treino/teste")
     features: Optional[List[str]] = Field(
         default=["close"],
-        description="Features para treinamento: close (obrigatorio), volume, rsi_14, ema_20"
+        description="Features para treinamento: close (obrigatorio), volume, rsi_14, ema_20, atr_14"
     )
 
 

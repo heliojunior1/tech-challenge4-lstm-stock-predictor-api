@@ -76,6 +76,11 @@ AVAILABLE_FEATURES = {
         "required": False,
         "description": "Média Móvel Exponencial - 20 períodos (direção da tendência)"
     },
+    "atr_14": {
+        "name": "ATR (14)",
+        "required": False,
+        "description": "Average True Range - 14 períodos (mede volatilidade)"
+    },
 }
 
 DEFAULT_FEATURES = ["close"]  # Apenas close por padrão (retrocompatível)
