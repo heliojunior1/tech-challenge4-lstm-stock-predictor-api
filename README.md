@@ -245,13 +245,15 @@ A LSTM usa **4 gates** com ativações específicas (implementação PyTorch):
 
 | Parâmetro | Valor | Descrição |
 |-----------|-------|-----------|
-| `input_size` | 1-4 | Features por timestep (close, volume, rsi, ema) |
+| `input_size` | 1-4 | Features por timestep (adjclose, volume, rsi, ema) |
 | `hidden_size` | 50 | Neurônios LSTM por camada |
 | `num_layers` | 2 | Camadas empilhadas |
 | `dropout` | 0.2 | 20% regularização |
 | `output_size` | 1 | Preço previsto |
 | `window_size` | 60 | Dias de input |
 | `bias` | True | Offset aprendível em cada gate |
+Obs: Foi utilizado como padrao o adjclose, visto que é o close normalizado considerando os dividendos. 
+
 
 ### Loss e Otimizador
 

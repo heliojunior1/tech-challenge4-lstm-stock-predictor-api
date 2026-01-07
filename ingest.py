@@ -28,6 +28,7 @@ from app.config import DEFAULT_TICKERS, ALPHAVANTAGE_API_KEY
 def download_alphavantage(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
     Baixa dados da API Alpha Vantage como fallback.
+    Usa TIME_SERIES_DAILY_ADJUSTED para obter preços ajustados por splits/dividendos.
     """
     print(f"   [FALLBACK] Tentando Alpha Vantage para {ticker}...")
     
@@ -39,7 +40,7 @@ def download_alphavantage(ticker: str, start_date: str, end_date: str) -> pd.Dat
             
     url = "https://www.alphavantage.co/query"
     params = {
-        "function": "TIME_SERIES_DAILY",
+        "function": "TIME_SERIES_DAILY_ADJUSTED",  # Usa dados ajustados (como Yahoo Finance)
         "symbol": ticker,
         "apikey": ALPHAVANTAGE_API_KEY,
         "outputsize": "compact", # Free tier limitação: compact=100 dados
@@ -85,17 +86,20 @@ def download_alphavantage(ticker: str, start_date: str, end_date: str) -> pd.Dat
         df = df_filtered
         
         # Renomear colunas para formato yfinance/interno
+        # TIME_SERIES_DAILY_ADJUSTED retorna: 1.open, 2.high, 3.low, 4.close, 5.adjusted close, 6.volume
+        # Usamos adjusted close como Close para manter consistência com yfinance (auto_adjust=True)
         df = df.rename(columns={
             "1. open": "Open",
             "2. high": "High",
             "3. low": "Low",
-            "4. close": "Close",
-            "5. volume": "Volume"
+            "5. adjusted close": "Close",  # Usa preço ajustado como Close (igual ao yfinance)
+            "6. volume": "Volume"
         })
         
         # Converter colunas para numeric
         for col in ["Open", "High", "Low", "Close", "Volume"]:
-            df[col] = pd.to_numeric(df[col])
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col])
             
         return df
         
@@ -131,7 +135,8 @@ def ingest_data(ticker: str, start_date: str = None, end_date: str = None) -> in
     # 1. Tentar baixar dados do yfinance (Prioridade 1)
     df = pd.DataFrame()
     try:
-        df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        # auto_adjust=True é o padrão: Close já vem ajustado por splits/dividendos
+        df = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
         
         # Tratar multi-level columns (problema em versões recentes do yfinance)
         if not df.empty and isinstance(df.columns, pd.MultiIndex):
@@ -154,6 +159,8 @@ def ingest_data(ticker: str, start_date: str = None, end_date: str = None) -> in
     
     # 2. Limpeza de dados
     df = df.reset_index()
+    
+    # Close já vem ajustado por splits/dividendos (auto_adjust=True no yfinance)
     df = df.rename(columns={
         'Date': 'data',
         'Open': 'open',
