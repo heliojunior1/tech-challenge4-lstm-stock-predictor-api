@@ -35,7 +35,7 @@ A API agora acompanha uma interface web simples para facilitar o uso.
 
 1.  **Dashboard**: Visão geral de modelos treinados e previsões recentes.
 2.  **Ingestão**: Formulário para baixar dados históricos (com suporte a datas).
-3.  **Treinamento**: Interface para treinar novos modelos (síncrono ou assíncrono).
+3.  **Treinamento**: Interface para treinar novos modelos (síncrono ou assíncrono). A criação do assíncrono é em virtude que alguns treinamentos o periodo pode ser longo e o servidor render tem uma limitacao de 30s para uma chamada feita pelo gateway na versão gratuita . 
 4.  **Predição**:
     *   **Padrão**: Prever usando ações cadastradas.
     *   **Custom**: Prever usando dados históricos colados manualmente.
